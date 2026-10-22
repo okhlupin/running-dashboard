@@ -1,0 +1,4187 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Интерактивный дашборд беговых тренировок PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0b1120;
+    --bg-elev: #151f32;
+    --card: #1e293b;
+    --card-hover: #26354d;
+    --border: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #22c55e;
+    --accent-soft: rgba(34, 197, 94, 0.16);
+    --blue: #3b82f6;
+    --blue-soft: rgba(59, 130, 246, 0.18);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245, 158, 11, 0.18);
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, 0.18);
+    --purple: #a855f7;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --heat-0: #1e293b;
+    --heat-1: #14532d;
+    --heat-2: #15803d;
+    --heat-3: #16a34a;
+    --heat-4: #4ade80;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f1f5f9;
+    --bg-elev: #ffffff;
+    --card: #ffffff;
+    --card-hover: #f8fafc;
+    --border: #cbd5e1;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #16a34a;
+    --accent-soft: rgba(22, 163, 74, 0.14);
+    --blue: #2563eb;
+    --blue-soft: rgba(37, 99, 235, 0.14);
+    --amber: #d97706;
+    --amber-soft: rgba(217, 119, 6, 0.15);
+    --danger: #dc2626;
+    --danger-soft: rgba(220, 38, 38, 0.15);
+    --purple: #9333ea;
+    --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    --heat-0: #e2e8f0;
+    --heat-1: #bbf7d0;
+    --heat-2: #4ade80;
+    --heat-3: #16a34a;
+    --heat-4: #15803d;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px 28px 48px;
+    min-width: 1180px;
+    line-height: 1.45;
+  }
+
+  h1, h2, h3, h4 { margin: 0; font-weight: 700; }
+  .app-shell { max-width: 1640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  /* Шапка + Бегущая символьная фигура */
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) 460px;
+    align-items: center;
+    gap: 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 22px;
+    box-shadow: var(--shadow);
+  }
+  .brand-title { font-size: 24px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 10px; }
+  .brand-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* ASCII/Unicode Анимация бегуна и прогресс-дорожка месяца */
+  .runner-stage {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .runner-stage-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .runner-track {
+    position: relative;
+    height: 58px;
+    border-bottom: 2px dashed var(--border);
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .runner-progress-fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--blue));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .runner-avatar {
+    position: absolute;
+    bottom: 6px;
+    left: 0%;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    line-height: 1.05;
+    white-space: pre;
+    color: var(--accent);
+    font-weight: 700;
+    transition: left 0.18s linear;
+    user-select: none;
+    pointer-events: none;
+    text-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+  }
+  .runner-finish {
+    position: absolute;
+    right: 6px;
+    bottom: 8px;
+    font-size: 16px;
+    user-select: none;
+  }
+
+  .top-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  .top-actions button { height: 34px; justify-content: center; }
+
+  /* Кнопки и поля */
+  button, .btn {
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 13px;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #052e16;
+  }
+  button:hover { filter: brightness(1.08); }
+  .btn-secondary { background: var(--bg-elev); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--card-hover); }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; padding: 5px 9px; font-size: 12px; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--blue);
+    border-color: transparent;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+
+  /* Панель фильтров и Хлебные крошки дрилдауна */
+  .filter-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow);
+  }
+  .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .type-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .type-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--muted);
+    user-select: none;
+  }
+  .type-pill.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .drill-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .breadcrumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; }
+  .crumb {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .crumb:hover { border-color: var(--blue); }
+  .crumb.current { background: var(--blue-soft); color: var(--blue); border-color: var(--blue); font-weight: 700; }
+  .crumb-sep { color: var(--muted); }
+
+  /* KPI Сетка (10 карточек) */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 15px 16px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.14s ease, border-color 0.14s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kpi-card:hover { transform: translateY(-2px); border-color: var(--blue); }
+  .kpi-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+  .kpi-val { font-size: 26px; font-weight: 800; margin: 6px 0 4px; display: flex; align-items: baseline; gap: 5px; }
+  .kpi-unit { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .kpi-sub { font-size: 12px; color: var(--muted); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .badge {
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-green { background: var(--accent-soft); color: var(--accent); }
+  .badge-yellow { background: var(--amber-soft); color: var(--amber); }
+  .badge-red { background: var(--danger-soft); color: var(--danger); }
+  .badge-blue { background: var(--blue-soft); color: var(--blue); }
+
+  .progress-mini {
+    height: 6px;
+    background: var(--bg-elev);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-mini > div {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+
+  /* Основная сетка дашборда */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .left-col, .right-col { display: flex; flex-direction: column; gap: 18px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: end; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: end; }
+  .form-row > div, .form-row-3 > div { display: flex; flex-direction: column; min-width: 0; justify-content: flex-end; }
+  .form-msg { font-size: 12px; min-height: 18px; margin: 6px 0; color: var(--danger); font-weight: 500; }
+  .form-msg.ok { color: var(--accent); }
+
+  /* Дни отдыха чекбоксы */
+  .days-check { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 6px; }
+  .day-box {
+    text-align: center;
+    padding: 6px 2px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .day-box.rest {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+    color: var(--danger);
+    font-weight: 700;
+  }
+
+  /* Графики сетка */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .chart-box { position: relative; height: 270px; width: 100%; }
+  .chart-box-tall { position: relative; height: 300px; width: 100%; }
+
+  /* Тепловая карта за год */
+  .heatmap-wrap { overflow-x: auto; padding-bottom: 6px; }
+  .heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    grid-auto-flow: column;
+    grid-auto-columns: 13px;
+    gap: 3px;
+    min-width: 740px;
+  }
+  .heat-cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    background: var(--heat-0);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .heat-cell:hover { transform: scale(1.35); outline: 1px solid var(--text); z-index: 2; }
+  .heat-l1 { background: var(--heat-1); }
+  .heat-l2 { background: var(--heat-2); }
+  .heat-l3 { background: var(--heat-3); }
+  .heat-l4 { background: var(--heat-4); }
+
+  /* Таблицы */
+  .table-wrap { overflow-x: auto; max-height: 410px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    user-select: none;
+    z-index: 1;
+  }
+  th:hover { color: var(--text); }
+  td.num, th.num { text-align: right; }
+  tr.clickable-row { cursor: pointer; }
+  tr.clickable-row:hover { background: var(--card-hover); }
+  .empty-state { text-align: center; padding: 26px 12px; color: var(--muted); font-size: 13px; }
+
+  /* Модальное окно */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .detail-item {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .detail-item .lbl { font-size: 11px; color: var(--muted); }
+  .detail-item .val { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+  /* --- ИИ-инструменты: ключ, распознавание речи, статусы --- */
+  .btn-ai {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+  }
+  .btn-ai:hover { filter: brightness(1.12); }
+  .btn-ai.configured { background: linear-gradient(135deg, #0ea5e9, #6366f1); }
+  .btn-mic {
+    background: var(--danger);
+    color: #fff;
+    border-color: transparent;
+  }
+  .btn-mic.recording {
+    animation: mic-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes mic-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  }
+
+  .ai-field-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: end;
+  }
+  .ai-field-row > button { height: 35px; justify-content: center; }
+  .mic-block > button { height: 35px; justify-content: center; white-space: nowrap; }
+  .ai-hint {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 10px;
+  }
+  .ai-hint code {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+  }
+  .ai-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    min-height: 36px;
+  }
+  .ai-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex: 0 0 8px;
+  }
+  .ai-status.ok { color: var(--accent); border-color: var(--accent); }
+  .ai-status.ok .dot { background: var(--accent); }
+  .ai-status.err { color: var(--danger); border-color: var(--danger); }
+  .ai-status.err .dot { background: var(--danger); }
+  .ai-status.busy { color: var(--amber); border-color: var(--amber); }
+  .ai-status.busy .dot { background: var(--amber); animation: mic-pulse 1.1s infinite; }
+
+  /* Симметричное поле заметок и блок распознавания в форме */
+  .mic-block {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 8px;
+  }
+
+  /* Модальные окна: одинаковая ширина шапки и контента */
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-head h2 { font-size: 17px; }
+  .modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .transcript-box {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 13px;
+    min-height: 74px;
+    max-height: 150px;
+    overflow-y: auto;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .transcript-box.empty { color: var(--muted); font-style: italic; }
+  .field-map {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .field-map-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+  .field-map-item .k { color: var(--muted); }
+  .field-map-item .v { font-weight: 700; }
+  .field-map-item.filled { border-color: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .runner-avatar, .runner-progress-fill, .kpi-card { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ШАПКА + АНИМИРОВАННЫЙ СИМВОЛЬНЫЙ БЕГУН -->
+  <header class="topbar">
+    <div>
+      <div class="brand-title">
+        <span>🏃‍♂️ Беговой Дашборд PRO</span>
+        <span class="badge badge-blue" id="today-badge"></span>
+      </div>
+      <div class="brand-sub">Аналитика объёмов, темпа, пульса, планов и целей беговых тренировок</div>
+    </div>
+
+    <!-- Дорожка бегуна (прогресс к цели месяца + покадровая символьная анимация) -->
+    <div class="runner-stage">
+      <div class="runner-stage-head">
+        <span id="runner-status-text">Прогресс цели месяца: 0%</span>
+        <label style="display:inline-flex;align-items:center;gap:5px;margin:0;cursor:pointer;">
+          <input type="checkbox" id="toggle-anim" style="width:auto;margin:0;" checked>
+          <span>Анимация</span>
+        </label>
+      </div>
+      <div class="runner-track" id="runner-track">
+        <div class="runner-progress-fill" id="runner-progress-fill" style="width:0%"></div>
+        <pre class="runner-avatar" id="runner-avatar">  o  
+ /|\ 
+ / \ </pre>
+        <div class="runner-finish" title="Финиш / Цель месяца">🏁</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button type="button" class="btn-blue" id="btn-demo">⚡ Демо-данные (60)</button>
+      <button type="button" class="btn-secondary" id="btn-export-json">⬇ JSON</button>
+      <button type="button" class="btn-secondary" id="btn-import-json">⬆ JSON</button>
+      <input type="file" id="file-import-json" accept=".json" style="display:none">
+      <button type="button" class="btn-secondary" id="btn-open-csv">📄 Импорт CSV</button>
+      <button type="button" class="btn-secondary" id="btn-zones-cfg">❤️ Зоны ЧСС</button>
+      <button type="button" class="btn-secondary" id="btn-theme">🌓 Тема</button>
+      <button type="button" class="btn-ai" id="btn-ai-key">🔑 Ключ DeepSeek</button>
+      <button type="button" class="btn-ai" id="btn-ai-voice">🎙 Ввод голосом (ИИ)</button>
+    </div>
+  </header>
+
+  <!-- ПАНЕЛЬ ФИЛЬТРОВ -->
+  <section class="filter-bar">
+    <div class="filter-group">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">ПЕРИОД:</span>
+      <select id="filter-period" style="width:165px;">
+        <option value="7d">Последние 7 дней</option>
+        <option value="cur_month" selected>Текущий месяц</option>
+        <option value="prev_month">Прошлый месяц</option>
+        <option value="quarter">Квартал (90 дней)</option>
+        <option value="year">Текущий год</option>
+        <option value="custom">Произвольный...</option>
+      </select>
+      <div id="custom-dates-wrap" style="display:none;align-items:center;gap:6px;">
+        <input type="date" id="filter-from" style="width:135px;">
+        <span>—</span>
+        <input type="date" id="filter-to" style="width:135px;">
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">ТИПЫ:</span>
+      <div class="type-pills" id="filter-types"></div>
+    </div>
+
+    <div class="filter-group">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">МЕТРИКА:</span>
+      <select id="filter-metric" style="width:130px;">
+        <option value="km">Дистанция (км)</option>
+        <option value="pace">Темп (мин/км)</option>
+        <option value="pulse">Пульс (уд/мин)</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">ОКНО СС:</span>
+      <select id="filter-ma" style="width:95px;">
+        <option value="7">7 дней</option>
+        <option value="14">14 дней</option>
+        <option value="28">28 дней</option>
+      </select>
+      <button type="button" class="btn-secondary btn-sm" id="btn-reset-filters">Сбросить фильтры</button>
+    </div>
+  </section>
+
+  <!-- ИЕРАРХИЯ ДРИЛДАУНА (ХЛЕБНЫЕ КРОШКИ) -->
+  <section class="drill-bar">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;">Дрилдаун:</span>
+      <div class="breadcrumbs" id="drill-breadcrumbs"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);">
+      <span id="drill-hint">Кликните по точке/столбцу графика, KPI-карточке или ячейке календаря для углубления (Год → Месяц → Неделя → День → Тренировка)</span>
+      <button type="button" class="btn-secondary btn-sm" id="btn-drill-reset">На верхний уровень</button>
+    </div>
+  </section>
+
+  <!-- 10 KPI-КАРТОЧЕК -->
+  <section class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card" data-kpi="7d">
+      <div class="kpi-title">За последние 7 дней</div>
+      <div class="kpi-val"><span id="kpi-km7">0</span><span class="kpi-unit">км</span></div>
+      <div class="kpi-sub"><span id="kpi-km7-plan">План: 0 км</span><span class="badge" id="kpi-km7-pct">0%</span></div>
+      <div class="progress-mini"><div id="kpi-km7-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="month">
+      <div class="kpi-title">За текущий месяц</div>
+      <div class="kpi-val"><span id="kpi-kmm">0</span><span class="kpi-unit">км</span></div>
+      <div class="kpi-sub"><span id="kpi-kmm-goal">Цель: 75 км</span><span class="badge" id="kpi-kmm-pct">0%</span></div>
+      <div class="progress-mini"><div id="kpi-kmm-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="count">
+      <div class="kpi-title">Число тренировок</div>
+      <div class="kpi-val"><span id="kpi-cnt-period">0</span><span class="kpi-unit">за период</span></div>
+      <div class="kpi-sub"><span id="kpi-cnt-7d">7 дн: 0</span><span id="kpi-cnt-m">Месяц: 0</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="avg_km">
+      <div class="kpi-title">Средняя дистанция</div>
+      <div class="kpi-val"><span id="kpi-avg-km">0</span><span class="kpi-unit">км</span></div>
+      <div class="kpi-sub"><span>За выбранный период</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="avg_pace">
+      <div class="kpi-title">Средний темп</div>
+      <div class="kpi-val"><span id="kpi-avg-pace">—</span><span class="kpi-unit">мин/км</span></div>
+      <div class="kpi-sub"><span id="kpi-avg-speed">Скорость: — км/ч</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="w_pulse">
+      <div class="kpi-title">Ср. пульс (на км)</div>
+      <div class="kpi-val"><span id="kpi-wpulse">—</span><span class="kpi-unit">уд/мин</span></div>
+      <div class="kpi-sub"><span>Взвешен: ∑(ЧСС×км)/∑км</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="max_pulse">
+      <div class="kpi-title">Средний макс. пульс</div>
+      <div class="kpi-val"><span id="kpi-maxpulse">—</span><span class="kpi-unit">уд/мин</span></div>
+      <div class="kpi-sub"><span id="kpi-peakpulse">Пик: — уд/мин</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="longest">
+      <div class="kpi-title">Самая длинная</div>
+      <div class="kpi-val"><span id="kpi-longest">0</span><span class="kpi-unit">км</span></div>
+      <div class="kpi-sub"><span id="kpi-longest-date">Нет данных</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="streak">
+      <div class="kpi-title">Серия дней подряд</div>
+      <div class="kpi-val"><span id="kpi-streak">0</span><span class="kpi-unit">дн.</span></div>
+      <div class="kpi-sub"><span id="kpi-best-streak">Макс. в периоде: 0 дн.</span></div>
+    </div>
+
+    <div class="kpi-card" data-kpi="trend">
+      <div class="kpi-title">Тренд (4 нед. к пред. 4)</div>
+      <div class="kpi-val"><span id="kpi-trend">—</span></div>
+      <div class="kpi-sub"><span id="kpi-trend-sub">28 дн. против пред. 28 дн.</span></div>
+    </div>
+  </section>
+
+  <!-- ОСНОВНАЯ СЕТКА -->
+  <div class="main-grid">
+
+    <!-- ЛЕВАЯ КОЛОНКА: ВВОД ТРЕНИРОВКИ + ПЛАНЫ И ЦЕЛИ -->
+    <aside class="left-col">
+
+      <!-- Форма добавления / редактирования тренировки -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title" id="form-title">➕ Добавить тренировку</h2>
+          <button type="button" class="btn-secondary btn-sm" id="btn-cancel-edit" style="display:none;">Отмена</button>
+        </div>
+        <form id="workout-form" novalidate>
+          <input type="hidden" id="f-id">
+          <div class="form-row">
+            <div>
+              <label for="f-date">Дата</label>
+              <input type="date" id="f-date" required>
+            </div>
+            <div>
+              <label for="f-time">Время начала</label>
+              <input type="time" id="f-time" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="f-km">Дистанция (км, 0.01–500)</label>
+              <input type="number" id="f-km" step="0.01" min="0.01" max="500" placeholder="8.5" required>
+            </div>
+            <div>
+              <label for="f-duration">Время (ММ:СС / ЧЧ:ММ:СС)</label>
+              <input type="text" id="f-duration" placeholder="45:30 или 1:05:00" required>
+            </div>
+          </div>
+          <div class="form-row-3">
+            <div>
+              <label for="f-pulse-avg">Ср. ЧСС (30–250)</label>
+              <input type="number" id="f-pulse-avg" min="30" max="250" step="1" placeholder="148" required>
+            </div>
+            <div>
+              <label for="f-pulse-max">Макс. ЧСС (≥ ср.)</label>
+              <input type="number" id="f-pulse-max" min="30" max="250" step="1" placeholder="172" required>
+            </div>
+            <div>
+              <label for="f-type">Тип тренировки</label>
+              <select id="f-type">
+                <option value="лёгкая">Лёгкая</option>
+                <option value="восстановительная">Восстановительная</option>
+                <option value="интервалы">Интервалы</option>
+                <option value="темповая">Темповая</option>
+                <option value="длинная">Длинная</option>
+                <option value="фартлек">Фартлек</option>
+                <option value="соревнование">Соревнование</option>
+                <option value="другое">Другое</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:8px;">
+            <label for="f-notes">Заметки (необязательно)</label>
+            <input type="text" id="f-notes" placeholder="Самочувствие, покрытие, кроссовки...">
+          </div>
+          <div class="mic-block">
+            <div>
+              <label for="f-voice-text">ИИ-ввод с голоса (DeepSeek)</label>
+              <input type="text" id="f-voice-text" placeholder="Например: сегодня 10 километров за 50 минут, пульс 150...">
+            </div>
+            <button type="button" class="btn-ai" id="btn-inline-parse" title="Распознать текст и заполнить поля">✨ Разобрать</button>
+          </div>
+          <div class="ai-status" id="ai-form-status" style="margin-bottom:10px;">
+            <span class="dot"></span><span id="ai-form-status-text">ИИ не настроен — добавьте ключ DeepSeek кнопкой в шапке.</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span id="calc-preview-pace">Расчётный темп: — мин/км</span>
+            <span id="calc-preview-speed">Скорость: — км/ч</span>
+          </div>
+          <div class="form-msg" id="form-msg"></div>
+          <button type="submit" style="width:100%;justify-content:center;" id="btn-submit-run">Сохранить тренировку</button>
+        </form>
+      </div>
+
+      <!-- Планы на неделю и Цель на месяц -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">🎯 Недельный план и Цель месяца</h2>
+        </div>
+
+        <!-- Недельный план -->
+        <div style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;">Недельный план</span>
+            <select id="plan-week-scope" style="width:195px;padding:4px 8px;font-size:12px;">
+              <option value="default">Шаблон по умолчанию</option>
+              <option value="current">Только выбранная неделя</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="plan-week-km">Планируемые км / нед.</label>
+              <input type="number" id="plan-week-km" min="0" max="500" step="1" value="35">
+            </div>
+            <div>
+              <label>План на трен. день</label>
+              <div style="padding:8px 10px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;color:var(--accent);" id="plan-daily-calc">7.00 км/день</div>
+            </div>
+          </div>
+          <label>Дни отдыха (кликните для переключения):</label>
+          <div class="days-check" id="plan-rest-days">
+            <div class="day-box" data-dow="1">Пн</div>
+            <div class="day-box" data-dow="2">Вт</div>
+            <div class="day-box" data-dow="3">Ср</div>
+            <div class="day-box" data-dow="4">Чт</div>
+            <div class="day-box rest" data-dow="5">Пт</div>
+            <div class="day-box" data-dow="6">Сб</div>
+            <div class="day-box rest" data-dow="0">Вс</div>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" style="margin-top:10px;width:100%;justify-content:center;" id="btn-save-week-plan">Применить недельный план</button>
+        </div>
+
+        <!-- Цель на месяц -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;">Цель на месяц</span>
+            <select id="goal-month-scope" style="width:195px;padding:4px 8px;font-size:12px;">
+              <option value="default">По умолчанию для всех</option>
+              <option value="current">Для текущего месяца</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;" id="goal-presets">
+            <button type="button" class="btn-secondary btn-sm goal-preset" data-val="50">50 км</button>
+            <button type="button" class="btn-secondary btn-sm goal-preset" data-val="75">75 км</button>
+            <button type="button" class="btn-secondary btn-sm goal-preset" data-val="100">100 км</button>
+            <button type="button" class="btn-secondary btn-sm goal-preset" data-val="custom">Своё</button>
+          </div>
+          <div class="form-row" style="align-items:end;">
+            <div>
+              <label for="goal-month-input">Целевые км в месяц (1–1000)</label>
+              <input type="number" id="goal-month-input" min="1" max="1000" step="1" value="75">
+            </div>
+            <button type="button" class="btn-blue" id="btn-save-month-goal" style="justify-content:center;">Сохранить цель</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Сводка сравнения Факт против Плана (с усреднением по дням) -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">📊 Факт vs План (усреднение)</h2>
+          <select id="compare-mode" style="width:130px;padding:4px 8px;font-size:12px;">
+            <option value="week">Текущая неделя</option>
+            <option value="month" selected>Текущий месяц</option>
+          </select>
+        </div>
+        <div id="plan-vs-fact-summary" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+      </div>
+
+    </aside>
+
+    <!-- ПРАВАЯ КОЛОНКА: ГРАФИКИ, ДРИЛДАУН, ТАБЛИЦЫ -->
+    <main class="right-col">
+
+      <!-- Панель активного дрилдаун-уровня / KPI списка -->
+      <div class="card" id="drill-panel-card" style="display:none;border-color:var(--blue);">
+        <div class="card-header">
+          <h2 class="card-title" id="drill-panel-title">Детализация уровня</h2>
+          <button type="button" class="btn-secondary btn-sm" id="btn-close-drill-panel">Скрыть панель ✕</button>
+        </div>
+        <div id="drill-panel-body"></div>
+      </div>
+
+      <!-- Сетка 4 основных графиков Chart.js -->
+      <div class="charts-grid">
+        <!-- 1. Месяц / Иерархия — Линейный график -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="chart-month-title">📈 Динамика месяца (Линейный + План + СС)</h2>
+              <div style="font-size:11px;color:var(--muted);">Клик по точке углубляет дрилдаун</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <select id="month-chart-group" style="width:115px;padding:4px 8px;font-size:12px;">
+                <option value="day">По дням</option>
+                <option value="week">По неделям</option>
+                <option value="cum">Накопительно</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="canvas-month"></canvas></div>
+        </div>
+
+        <!-- 2. Неделя — Столбчатый график (Факт + контур Плана + линия СС) -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="chart-week-title">📊 Неделя по дням (Столбчатый: Факт vs План)</h2>
+              <div style="font-size:11px;color:var(--muted);">Клик по столбцу открывает день</div>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <button type="button" class="btn-secondary btn-sm" id="btn-prev-week">◀</button>
+              <button type="button" class="btn-secondary btn-sm" id="btn-cur-week">Сегодня</button>
+              <button type="button" class="btn-secondary btn-sm" id="btn-next-week">▶</button>
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="canvas-week"></canvas></div>
+        </div>
+
+        <!-- 3. Темп и Пульс -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">⚡ Средний темп и Пульс (+ скользящее среднее)</h2>
+              <div style="font-size:11px;color:var(--muted);">Клик по тренировке открывает карточку</div>
+            </div>
+            <select id="pace-chart-axis" style="width:140px;padding:4px 8px;font-size:12px;">
+              <option value="date">По датам</option>
+              <option value="km">По дистанции (км)</option>
+            </select>
+          </div>
+          <div class="chart-box"><canvas id="canvas-pace-pulse"></canvas></div>
+        </div>
+
+        <!-- 4. Пульсовые зоны -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">❤️ Распределение по пульсовым зонам</h2>
+              <div style="font-size:11px;color:var(--muted);" id="zones-subtitle">От макс. ЧСС: 190 уд/мин</div>
+            </div>
+            <select id="zones-metric-mode" style="width:130px;padding:4px 8px;font-size:12px;">
+              <option value="count">По числу бегов</option>
+              <option value="km">По километрам</option>
+            </select>
+          </div>
+          <div class="chart-box"><canvas id="canvas-zones"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Годовая тепловая карта активности -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" id="heatmap-title">🗓 Тепловая карта активности за год</h2>
+            <div style="font-size:11px;color:var(--muted);">Цвет отражает километраж за день. Клик по ячейке открывает детали дня.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);">
+            <select id="heatmap-year" style="width:95px;padding:4px 8px;font-size:12px;"></select>
+            <span>Меньше</span>
+            <span class="heat-cell" style="cursor:default;"></span>
+            <span class="heat-cell heat-l1" style="cursor:default;"></span>
+            <span class="heat-cell heat-l2" style="cursor:default;"></span>
+            <span class="heat-cell heat-l3" style="cursor:default;"></span>
+            <span class="heat-cell heat-l4" style="cursor:default;"></span>
+            <span>Больше</span>
+          </div>
+        </div>
+        <div class="heatmap-wrap">
+          <div class="heatmap-grid" id="heatmap-grid"></div>
+        </div>
+      </div>
+
+      <!-- Таблица по дням: План vs Факт -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">📅 Посуточное сравнение: План vs Факт</h2>
+          <span style="font-size:12px;color:var(--muted);" id="daily-plan-caption"></span>
+        </div>
+        <div class="table-wrap" style="max-height:290px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>День недели</th>
+                <th>Статус</th>
+                <th class="num">План (км)</th>
+                <th class="num">Факт (км)</th>
+                <th class="num">Отклонение (км)</th>
+                <th class="num">Выполнение %</th>
+                <th class="num">Накоп. план</th>
+                <th class="num">Накоп. факт</th>
+              </tr>
+            </thead>
+            <tbody id="daily-compare-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Полный журнал тренировок с поиском и сортировкой -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">📋 Журнал тренировок (<span id="runs-count-label">0</span>)</h2>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="search" id="table-search" placeholder="Поиск по дате, типу, заметкам..." style="width:250px;">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="runs-table">
+            <thead>
+              <tr>
+                <th data-sort="date">Дата ↕</th>
+                <th data-sort="time">Старт ↕</th>
+                <th data-sort="type">Тип ↕</th>
+                <th class="num" data-sort="km">Км ↕</th>
+                <th class="num" data-sort="durationSec">Время ↕</th>
+                <th class="num" data-sort="paceSec">Темп ↕</th>
+                <th class="num" data-sort="pulseAvg">Ср. ЧСС ↕</th>
+                <th class="num" data-sort="pulseMax">Макс. ЧСС ↕</th>
+                <th>Заметки</th>
+                <th class="num">Действия</th>
+              </tr>
+            </thead>
+            <tbody id="runs-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="runs-empty">Нет тренировок за выбранный период. Добавьте запись слева или нажмите «⚡ Демо-данные (60)».</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ДЕТАЛЕЙ ТРЕНИРОВКИ -->
+<div class="modal-backdrop" id="modal-workout">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="card-title" id="modal-workout-title">Детали тренировки</h2>
+      <button type="button" class="btn-secondary btn-sm" data-close-modal="modal-workout">✕ Закрыть (Esc)</button>
+    </div>
+    <div id="modal-workout-content"></div>
+    <div style="margin-top:14px;">
+      <h4 style="font-size:13px;color:var(--muted);margin-bottom:8px;">Оценка распределения времени по пульсовым зонам тренировки</h4>
+      <div style="height:170px;"><canvas id="canvas-modal-zones"></canvas></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-danger" id="modal-btn-delete">🗑 Удалить</button>
+      <button type="button" class="btn-blue" id="modal-btn-edit">✎ Редактировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ИМПОРТА CSV -->
+<div class="modal-backdrop" id="modal-csv">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="card-title">📄 Импорт тренировок из CSV</h2>
+      <button type="button" class="btn-secondary btn-sm" data-close-modal="modal-csv">✕ Закрыть</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:0;">
+      Формат столбцов: <code>дата,время,км,время_сек,пульс_ср,пульс_макс,тип,заметки</code> (время_сек также понимает ММ:СС или ЧЧ:ММ:СС). Строки с ошибками автоматически пропускаются.
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="file" id="csv-file-input" accept=".csv,.txt">
+      <button type="button" class="btn-secondary btn-sm" id="btn-csv-sample">Вставить пример</button>
+    </div>
+    <textarea id="csv-textarea" rows="6" placeholder="2026-10-15,07:30,10.5,3150,148,168,длинная,Отличная погода"></textarea>
+    <div style="margin:10px 0;display:flex;justify-content:space-between;align-items:center;">
+      <button type="button" class="btn-secondary btn-sm" id="btn-csv-preview">Проверить и предпросмотреть</button>
+      <span id="csv-preview-stat" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+    <div class="table-wrap" style="max-height:180px;margin-bottom:12px;" id="csv-preview-wrap"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn-secondary" data-close-modal="modal-csv">Отмена</button>
+      <button type="button" id="btn-csv-commit" disabled>Импортировать валидные строки</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО НАСТРОЙКИ ПУЛЬСОВЫХ ЗОН -->
+<div class="modal-backdrop" id="modal-zones">
+  <div class="modal-card" style="max-width:480px;">
+    <div class="modal-head">
+      <h2 class="card-title">❤️ Настройка пульсовых зон</h2>
+      <button type="button" class="btn-secondary btn-sm" data-close-modal="modal-zones">✕ Закрыть</button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label for="cfg-hr-max">Ваш максимальный пульс (ЧСС макс, 120–240)</label>
+      <input type="number" id="cfg-hr-max" min="120" max="240" value="190">
+    </div>
+    <p style="font-size:12px;color:var(--muted);">Верхние границы зон (% от ЧСС макс): Z1, Z2, Z3, Z4 (Z5 — всё, что выше Z4 до 100%+):</p>
+    <div class="form-row">
+      <div><label>Зона 1 (Восст.) до %</label><input type="number" id="cfg-z1" min="50" max="95" value="60"></div>
+      <div><label>Зона 2 (Аэроб.) до %</label><input type="number" id="cfg-z2" min="55" max="96" value="70"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Зона 3 (Темп.) до %</label><input type="number" id="cfg-z3" min="60" max="98" value="80"></div>
+      <div><label>Зона 4 (Порог.) до %</label><input type="number" id="cfg-z4" min="65" max="99" value="90"></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-secondary" data-close-modal="modal-zones">Отмена</button>
+      <button type="button" id="btn-save-zones">Сохранить зоны</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: КЛЮЧ API DEEPSEEK -->
+<div class="modal-backdrop" id="modal-ai-key">
+  <div class="modal-card" style="max-width:560px;">
+    <div class="modal-head">
+      <h2 class="card-title">🔑 Ключ API DeepSeek</h2>
+      <button type="button" class="btn-secondary btn-sm" data-close-modal="modal-ai-key">✕ Закрыть</button>
+    </div>
+
+    <p class="ai-hint">
+      Ключ создаётся в личном кабинете DeepSeek на странице API Keys и имеет вид <code>sk-...</code>.
+      Он сохраняется только в localStorage этого браузера и отправляется напрямую на
+      <code>api.deepseek.com</code> — без промежуточных серверов.
+    </p>
+
+    <div class="ai-field-row" style="margin-bottom:10px;">
+      <div>
+        <label for="ai-key-input">API-ключ</label>
+        <input type="password" id="ai-key-input" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      </div>
+      <button type="button" class="btn-secondary" id="btn-ai-key-toggle" title="Показать или скрыть ключ">👁</button>
+    </div>
+
+    <div class="ai-field-row" style="margin-bottom:10px;">
+      <div>
+        <label for="ai-model-select">Модель</label>
+        <select id="ai-model-select">
+          <option value="deepseek-chat">deepseek-chat (быстрая, рекомендуется)</option>
+          <option value="deepseek-reasoner">deepseek-reasoner (глубокий разбор)</option>
+        </select>
+      </div>
+      <button type="button" class="btn-secondary" id="btn-ai-key-test" title="Проверить ключ запросом к API">Проверить</button>
+    </div>
+
+    <div class="ai-status" id="ai-key-status" style="margin-bottom:14px;">
+      <span class="dot"></span><span id="ai-key-status-text">Ключ не задан.</span>
+    </div>
+
+    <div class="modal-foot" style="justify-content:space-between;">
+      <button type="button" class="btn-secondary" id="btn-ai-key-clear">Удалить ключ</button>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn-secondary" data-close-modal="modal-ai-key">Отмена</button>
+        <button type="button" class="btn-ai" id="btn-ai-key-save">Сохранить ключ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ГОЛОСОВОЙ ВВОД ТРЕНИРОВКИ ЧЕРЕЗ ИИ -->
+<div class="modal-backdrop" id="modal-ai-voice">
+  <div class="modal-card" style="max-width:680px;">
+    <div class="modal-head">
+      <h2 class="card-title">🎙 ИИ-ввод тренировки голосом</h2>
+      <button type="button" class="btn-secondary btn-sm" data-close-modal="modal-ai-voice">✕ Закрыть</button>
+    </div>
+
+    <p class="ai-hint">
+      Нажмите «Начать запись» и расскажите о прошедшей тренировке обычными словами:
+      дата, время старта, дистанция, длительность, средний и максимальный пульс, тип.
+      Распознанный текст уйдёт в DeepSeek, который разложит его по полям формы.
+      Даты и числа можно называть словами — «вчера», «десять километров», «полтора часа».
+    </p>
+
+    <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+      <button type="button" class="btn-mic" id="btn-voice-record">🎙 Начать запись</button>
+      <button type="button" class="btn-secondary" id="btn-voice-clear">Очистить</button>
+      <select id="voice-lang-select" style="width:170px;">
+        <option value="ru-RU">Русский (ru-RU)</option>
+        <option value="en-US">English (en-US)</option>
+      </select>
+      <button type="button" class="btn-ai" id="btn-voice-parse">✨ Разобрать через ИИ</button>
+    </div>
+
+    <div class="ai-status" id="ai-voice-status" style="margin-bottom:10px;">
+      <span class="dot"></span><span id="ai-voice-status-text">Готово к записи.</span>
+    </div>
+
+    <label for="voice-transcript">Распознанный текст (можно править вручную)</label>
+    <div class="transcript-box empty" id="voice-transcript" contenteditable="true" spellcheck="false">Здесь появится распознанная речь. Можно ввести текст вручную, если микрофон недоступен.</div>
+
+    <div style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <span style="font-size:13px;font-weight:700;">Разобранные поля</span>
+        <span style="font-size:11px;color:var(--muted);">Отметьте галочками, что переносить в форму</span>
+      </div>
+      <div class="field-map" id="voice-field-map">
+        <div class="empty-state" style="grid-column:1 / -1;padding:14px;">Пока ничего не разобрано.</div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button type="button" class="btn-secondary" data-close-modal="modal-ai-voice">Отмена</button>
+      <button type="button" class="btn-ai" id="btn-voice-apply" disabled>Заполнить форму</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   1. КОНСТАНТЫ, ТИПЫ И ХРАНИЛИЩЕ LOCALSTORAGE
+   ========================================================================= */
+const STORAGE_KEYS = {
+  runs: 'run_pro_runs_v2',
+  plans: 'run_pro_plans_v2',
+  goals: 'run_pro_goals_v2',
+  settings: 'run_pro_settings_v2'
+};
+
+// Ключ DeepSeek хранится отдельно от настроек, чтобы случайно не уехал в экспорт JSON
+const AI_KEY_STORAGE = 'run_pro_deepseek_key_v1';
+const AI_MODEL_STORAGE = 'run_pro_deepseek_model_v1';
+const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+
+// Состояние ИИ-подсистемы
+const aiState = {
+  key: '',
+  model: 'deepseek-chat',
+  parsedFields: null,   // результат разбора речи
+  applying: false
+};
+
+const WORKOUT_TYPES = [
+  'лёгкая', 'восстановительная', 'интервалы', 'темповая',
+  'длинная', 'фартлек', 'соревнование', 'другое'
+];
+
+const $ = id => document.getElementById(id);
+const pad2 = n => String(n).padStart(2, '0');
+
+// Форматирование локальной даты в YYYY-MM-DD
+function toISO(dateObj) {
+  return `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`;
+}
+
+function parseISO(isoStr) {
+  const [y, m, d] = isoStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Ключ понедельника недели (YYYY-MM-DD понедельника) для индивидуальных недельных планов
+function getMondayISO(isoStr) {
+  const d = parseISO(isoStr);
+  const dow = d.getDay(); // 0 Вс .. 6 Сб
+  const diff = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + diff);
+  return toISO(d);
+}
+
+function addDaysISO(isoStr, days) {
+  const d = parseISO(isoStr);
+  d.setDate(d.getDate() + days);
+  return toISO(d);
+}
+
+function listDaysBetween(startISO, endISO) {
+  const res = [];
+  if (!startISO || !endISO || startISO > endISO) return res;
+  let cur = parseISO(startISO);
+  const end = parseISO(endISO);
+  while (cur <= end) {
+    res.push(toISO(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return res;
+}
+
+function fmtNum(val, digits = 2) {
+  if (val === null || val === undefined || Number.isNaN(val)) return '—';
+  return Number(val).toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits
+  });
+}
+
+function fmtDateShort(isoStr) {
+  const d = parseISO(isoStr);
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+}
+
+function fmtDateFull(isoStr) {
+  const d = parseISO(isoStr);
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', weekday: 'short' });
+}
+
+/* =========================================================================
+   2. ЧИСТЫЕ ФУНКЦИИ РАСЧЁТОВ (ТЕМП, СКОРОСТЬ, ВЗВЕШЕННЫЙ ПУЛЬС, ПЛАН, СС, СЕРИЯ)
+   ========================================================================= */
+
+// Парсинг строки времени тренировки ("ММ:СС", "ЧЧ:ММ:СС" или секунды) -> секунды
+function parseDurationToSec(input) {
+  if (typeof input === 'number' && input > 0) return Math.round(input);
+  if (!input) return null;
+  const s = String(input).trim();
+  if (/^\d+$/.test(s)) {
+    const sec = parseInt(s, 10);
+    return sec > 0 ? sec : null;
+  }
+  const parts = s.split(':').map(p => p.trim());
+  if (parts.some(p => !/^\d+$/.test(p))) return null;
+  if (parts.length === 2) {
+    const [mm, ss] = parts.map(Number);
+    if (ss >= 60) return null;
+    const total = mm * 60 + ss;
+    return total > 0 ? total : null;
+  }
+  if (parts.length === 3) {
+    const [hh, mm, ss] = parts.map(Number);
+    if (mm >= 60 || ss >= 60) return null;
+    const total = hh * 3600 + mm * 60 + ss;
+    return total > 0 ? total : null;
+  }
+  return null;
+}
+
+// Форматирование секунд в ЧЧ:ММ:СС или ММ:СС
+function formatDurationSec(sec) {
+  if (!sec || sec <= 0 || Number.isNaN(sec)) return '—';
+  const s = Math.round(sec);
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const rem = s % 60;
+  if (hh > 0) return `${hh}:${pad2(mm)}:${pad2(rem)}`;
+  return `${pad2(mm)}:${pad2(rem)}`;
+}
+
+// Чистая функция расчёта темпа (сек/км) из дистанции (км) и времени (сек)
+function calcPaceSecPerKm(km, durationSec) {
+  if (!(km > 0) || !(durationSec > 0)) return null;
+  return durationSec / km;
+}
+
+// Форматирование темпа (сек/км -> "М:СС")
+function formatPace(paceSec) {
+  if (!paceSec || paceSec <= 0 || !Number.isFinite(paceSec)) return '—';
+  const rounded = Math.round(paceSec);
+  const m = Math.floor(rounded / 60);
+  const s = rounded % 60;
+  return `${m}:${pad2(s)}`;
+}
+
+// Чистая функция расчёта скорости (км/ч)
+function calcSpeedKmh(km, durationSec) {
+  if (!(km > 0) || !(durationSec > 0)) return null;
+  return km / (durationSec / 3600);
+}
+
+// Чистая функция расчёта среднего пульса, взвешенного по километрам: sum(pulseAvg * km) / sum(km)
+function calcWeightedPulse(runsList) {
+  if (!Array.isArray(runsList) || runsList.length === 0) return null;
+  let totalKm = 0;
+  let weightedSum = 0;
+  for (const r of runsList) {
+    if (r && r.km > 0 && r.pulseAvg > 0) {
+      totalKm += r.km;
+      weightedSum += r.pulseAvg * r.km;
+    }
+  }
+  return totalKm > 0 ? weightedSum / totalKm : null;
+}
+
+// Чистая функция расчёта среднего темпа по списку пробежек (сумма времени / сумма км)
+function calcAggregatePaceSec(runsList) {
+  if (!Array.isArray(runsList) || runsList.length === 0) return null;
+  let sumKm = 0;
+  let sumSec = 0;
+  for (const r of runsList) {
+    if (r && r.km > 0 && r.durationSec > 0) {
+      sumKm += r.km;
+      sumSec += r.durationSec;
+    }
+  }
+  return sumKm > 0 ? sumSec / sumKm : null;
+}
+
+// Чистая функция расчёта плановой дистанции на тренировочный день: недельный_план / (7 - дни_отдыха)
+function calcTrainingDayPlanKm(weeklyKm, restDaysArray) {
+  const w = Number(weeklyKm) || 0;
+  const restCount = Array.isArray(restDaysArray) ? new Set(restDaysArray).size : 0;
+  const trainDays = 7 - restCount;
+  if (w <= 0 || trainDays <= 0) return 0;
+  return w / trainDays;
+}
+
+// Чистая функция расчёта плана на конкретную дату с учётом шаблона недели или переопределения недели
+function calcPlanForDate(isoDate, plansConfig) {
+  const mondayKey = getMondayISO(isoDate);
+  const weekSpec = (plansConfig && plansConfig.byWeek && plansConfig.byWeek[mondayKey])
+    ? plansConfig.byWeek[mondayKey]
+    : (plansConfig && plansConfig.defaultWeek ? plansConfig.defaultWeek : { weeklyKm: 35, restDays: [5, 0] });
+
+  const dow = parseISO(isoDate).getDay(); // 0..6
+  const restDays = Array.isArray(weekSpec.restDays) ? weekSpec.restDays : [];
+  const isRest = restDays.includes(dow);
+  const trainDayKm = calcTrainingDayPlanKm(weekSpec.weeklyKm, restDays);
+  return {
+    date: isoDate,
+    dow,
+    isRest,
+    planKm: isRest ? 0 : trainDayKm,
+    weeklyKm: Number(weekSpec.weeklyKm) || 0,
+    trainDayKm
+  };
+}
+
+// Чистая функция получения цели на месяц (YYYY-MM)
+function calcGoalForMonth(yearMonthStr, goalsConfig) {
+  if (goalsConfig && goalsConfig.byMonth && goalsConfig.byMonth[yearMonthStr] > 0) {
+    return Number(goalsConfig.byMonth[yearMonthStr]);
+  }
+  return Number(goalsConfig && goalsConfig.defaultGoal) || 75;
+}
+
+// Чистая функция скользящего среднего (окно windowSize по массиву чисел; поддерживает null)
+function calcMovingAverage(values, windowSize) {
+  const w = Math.max(1, parseInt(windowSize, 10) || 7);
+  return values.map((_, idx) => {
+    const start = Math.max(0, idx - w + 1);
+    let sum = 0;
+    let cnt = 0;
+    for (let i = start; i <= idx; i++) {
+      const v = values[i];
+      if (v !== null && v !== undefined && !Number.isNaN(v)) {
+        sum += Number(v);
+        cnt++;
+      }
+    }
+    return cnt > 0 ? Math.round((sum / cnt) * 100) / 100 : null;
+  });
+}
+
+// Чистая функция расчёта серии дней подряд с тренировками (текущая серия от refDateISO и максимальная)
+function calcStreaks(runsList, refDateISO) {
+  const activeDates = new Set((runsList || []).filter(r => r.km > 0).map(r => r.date));
+  if (activeDates.size === 0) return { current: 0, longest: 0 };
+
+  // Текущая серия: если сегодня есть пробежка — считаем от сегодня назад; иначе если вчера была — от вчера
+  let curStreak = 0;
+  let checkDate = refDateISO;
+  if (!activeDates.has(checkDate)) {
+    const yesterday = addDaysISO(refDateISO, -1);
+    if (activeDates.has(yesterday)) checkDate = yesterday;
+  }
+  while (activeDates.has(checkDate)) {
+    curStreak++;
+    checkDate = addDaysISO(checkDate, -1);
+  }
+
+  // Максимальная серия в наборе
+  const sorted = Array.from(activeDates).sort();
+  let longest = 0;
+  let runLen = 0;
+  let prev = null;
+  for (const d of sorted) {
+    if (!prev || addDaysISO(prev, 1) === d) {
+      runLen++;
+    } else {
+      runLen = 1;
+    }
+    if (runLen > longest) longest = runLen;
+    prev = d;
+  }
+  return { current: curStreak, longest };
+}
+
+// Чистая функция расчёта 4-недельного тренда (последние 28 дней относительно предыдущих 28 дней)
+function calcFourWeekTrend(allRuns, todayISO) {
+  const curStart = addDaysISO(todayISO, -27);
+  const prevEnd = addDaysISO(todayISO, -28);
+  const prevStart = addDaysISO(todayISO, -55);
+
+  const curKm = (allRuns || [])
+    .filter(r => r.date >= curStart && r.date <= todayISO)
+    .reduce((s, r) => s + r.km, 0);
+  const prevKm = (allRuns || [])
+    .filter(r => r.date >= prevStart && r.date <= prevEnd)
+    .reduce((s, r) => s + r.km, 0);
+
+  if (prevKm === 0) {
+    return { curKm, prevKm, pctChange: curKm > 0 ? 100 : 0, hasPrev: false };
+  }
+  const pctChange = ((curKm - prevKm) / prevKm) * 100;
+  return { curKm, prevKm, pctChange, hasPrev: true };
+}
+
+// Чистая функция определения пульсовой зоны (1..5) для среднего пульса
+function getPulseZoneIndex(pulseAvg, zonesCfg) {
+  const hrMax = (zonesCfg && zonesCfg.hrMax) || 190;
+  const thresholds = (zonesCfg && zonesCfg.thresholds) || [60, 70, 80, 90];
+  const pct = (pulseAvg / hrMax) * 100;
+  if (pct < thresholds[0]) return 0; // Z1
+  if (pct < thresholds[1]) return 1; // Z2
+  if (pct < thresholds[2]) return 2; // Z3
+  if (pct < thresholds[3]) return 3; // Z4
+  return 4; // Z5
+}
+
+// Цветовой класс бейджа по проценту выполнения плана (зелёный >= 100%, жёлтый 80-99%, красный < 80%)
+function getBadgeClassByPct(pct) {
+  if (pct >= 100) return 'badge-green';
+  if (pct >= 80) return 'badge-yellow';
+  return 'badge-red';
+}
+
+/* =========================================================================
+   3. СОСТОЯНИЕ ПРИЛОЖЕНИЯ И ГЕНЕРАТОР ДЕМО-ДАННЫХ (~60 ТРЕНИРОВОК ЗА 3 МЕСЯЦА)
+   ========================================================================= */
+const state = {
+  runs: [],
+  plans: {
+    defaultWeek: { weeklyKm: 35, restDays: [5, 0] }, // Пт и Вс отдых по умолчанию
+    byWeek: {}
+  },
+  goals: {
+    defaultGoal: 75,
+    preset: '75',
+    byMonth: {}
+  },
+  settings: {
+    theme: 'dark',
+    animEnabled: true,
+    maWindow: 7,
+    voiceLang: 'ru-RU',
+    zones: {
+      hrMax: 190,
+      thresholds: [60, 70, 80, 90]
+    }
+  },
+  filters: {
+    period: 'cur_month',
+    from: '',
+    to: '',
+    types: new Set(WORKOUT_TYPES),
+    metric: 'km',
+    search: '',
+    sortField: 'date',
+    sortAsc: false
+  },
+  // Состояние иерархического дрилдауна: Год -> Месяц -> Неделя -> День -> Тренировка
+  drill: {
+    level: 'year', // 'year' | 'month' | 'week' | 'day' | 'workout'
+    year: new Date().getFullYear(),
+    month: null,   // 'YYYY-MM'
+    weekMonday: null, // 'YYYY-MM-DD'
+    day: null,     // 'YYYY-MM-DD'
+    workoutId: null
+  },
+  weekCursorMonday: getMondayISO(toISO(new Date())),
+  csvParsedRows: []
+};
+
+function loadStateFromStorage() {
+  try {
+    const r = JSON.parse(localStorage.getItem(STORAGE_KEYS.runs));
+    if (Array.isArray(r)) state.runs = r;
+  } catch (e) {}
+  try {
+    const p = JSON.parse(localStorage.getItem(STORAGE_KEYS.plans));
+    if (p && p.defaultWeek) state.plans = p;
+  } catch (e) {}
+  try {
+    const g = JSON.parse(localStorage.getItem(STORAGE_KEYS.goals));
+    if (g && g.defaultGoal) state.goals = g;
+  } catch (e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings));
+    if (s) state.settings = Object.assign({}, state.settings, s);
+  } catch (e) {}
+}
+
+function saveAllState() {
+  localStorage.setItem(STORAGE_KEYS.runs, JSON.stringify(state.runs));
+  localStorage.setItem(STORAGE_KEYS.plans, JSON.stringify(state.plans));
+  localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(state.goals));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+}
+
+// Генерация ~60 реалистичных тренировок за последние 90 дней
+function generateDemoWorkouts() {
+  const today = new Date();
+  const demo = [];
+  // Детерминированный псевдослучайный генератор для воспроизводимых демо-данных
+  let seed = 42195;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  const notesPool = [
+    'Утренняя пробежка в парке, отличное самочувствие',
+    'Ветрено, держал ровный каденс 176',
+    'Стадион, работа над техникой и отталкиванием',
+    'Кросс по набережной, комфортный разговорный темп',
+    'Новые кроссовки, мягкая амортизация',
+    'Вечерний бег после работы, лёгкая усталость',
+    'Отрицательный сплит, вторая половина быстрее',
+    'Бег по грунту в лесопарке'
+  ];
+
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const isoDate = toISO(d);
+    const dow = d.getDay(); // 0 Вс .. 6 Сб
+
+    // В пятницу (5) почти всегда отдых, в остальные дни ~78% вероятность тренировки (~60 пробежек за 90 дней)
+    if (dow === 5 && rnd() < 0.85) continue;
+    if (dow !== 5 && rnd() > 0.78) continue;
+
+    let type = 'лёгкая';
+    let km = 6 + rnd() * 4;
+    let paceSec = 315 + rnd() * 35; // ~5:15 - 5:50 мин/км
+    let pulseAvg = Math.round(138 + rnd() * 14);
+
+    if (dow === 2) {
+      type = rnd() > 0.4 ? 'интервалы' : 'фартлек';
+      km = 7 + rnd() * 3.5;
+      paceSec = 265 + rnd() * 25; // ~4:25 - 4:50
+      pulseAvg = Math.round(162 + rnd() * 14);
+    } else if (dow === 4) {
+      type = 'темповая';
+      km = 8 + rnd() * 4;
+      paceSec = 280 + rnd() * 20; // ~4:40 - 5:00
+      pulseAvg = Math.round(156 + rnd() * 12);
+    } else if (dow === 6) {
+      type = 'длинная';
+      km = 13 + rnd() * 8;
+      paceSec = 320 + rnd() * 30;
+      pulseAvg = Math.round(145 + rnd() * 12);
+    } else if (dow === 0) {
+      type = 'восстановительная';
+      km = 4.5 + rnd() * 3;
+      paceSec = 345 + rnd() * 30;
+      pulseAvg = Math.round(128 + rnd() * 12);
+    } else if (i === 14 || i === 45) {
+      type = 'соревнование';
+      km = i === 14 ? 10.0 : 21.1;
+      paceSec = 252 + rnd() * 15;
+      pulseAvg = Math.round(171 + rnd() * 9);
+    }
+
+    km = Math.round(km * 100) / 100;
+    const durationSec = Math.round(km * paceSec);
+    const pulseMax = Math.min(205, pulseAvg + Math.round(12 + rnd() * 16));
+    const hour = dow === 6 || dow === 0 ? 8 + Math.floor(rnd() * 3) : 6 + Math.floor(rnd() * 3);
+    const min = [0, 10, 15, 20, 30, 45][Math.floor(rnd() * 6)];
+
+    demo.push({
+      id: 'demo_' + isoDate + '_' + Math.floor(rnd() * 10000),
+      date: isoDate,
+      time: `${pad2(hour)}:${pad2(min)}`,
+      km,
+      durationSec,
+      pulseAvg,
+      pulseMax,
+      type,
+      notes: notesPool[Math.floor(rnd() * notesPool.length)]
+    });
+  }
+  return demo;
+}
+/* =========================================================================
+   4. ФИЛЬТРАЦИЯ ПЕРИОДА И ТРЕНИРОВОК
+   ========================================================================= */
+function getPeriodBounds() {
+  const today = new Date();
+  const todayISO = toISO(today);
+  const p = state.filters.period;
+
+  if (p === '7d') {
+    return { start: addDaysISO(todayISO, -6), end: todayISO, label: 'Последние 7 дней' };
+  }
+  if (p === 'cur_month') {
+    const start = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-01`;
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const end = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(lastDay)}`;
+    return { start, end, label: 'Текущий месяц' };
+  }
+  if (p === 'prev_month') {
+    const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const start = `${prev.getFullYear()}-${pad2(prev.getMonth() + 1)}-01`;
+    const lastDay = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
+    const end = `${prev.getFullYear()}-${pad2(prev.getMonth() + 1)}-${pad2(lastDay)}`;
+    return { start, end, label: 'Прошлый месяц' };
+  }
+  if (p === 'quarter') {
+    return { start: addDaysISO(todayISO, -89), end: todayISO, label: 'Квартал (90 дней)' };
+  }
+  if (p === 'year') {
+    const y = today.getFullYear();
+    return { start: `${y}-01-01`, end: `${y}-12-31`, label: `${y} год` };
+  }
+  if (p === 'custom') {
+    const s = state.filters.from || addDaysISO(todayISO, -29);
+    const e = state.filters.to || todayISO;
+    return { start: s <= e ? s : e, end: e >= s ? e : s, label: `${s} — ${e}` };
+  }
+  return { start: addDaysISO(todayISO, -29), end: todayISO, label: 'Период' };
+}
+
+function getFilteredRuns(customStart, customEnd) {
+  const bounds = getPeriodBounds();
+  const start = customStart || bounds.start;
+  const end = customEnd || bounds.end;
+  return state.runs.filter(r => {
+    if (r.date < start || r.date > end) return false;
+    if (!state.filters.types.has(r.type)) return false;
+    return true;
+  });
+}
+
+function getRunsByTypeOnly() {
+  return state.runs.filter(r => state.filters.types.has(r.type));
+}
+
+/* =========================================================================
+   5. СИМВОЛЬНАЯ АНИМАЦИЯ БЕГУНА (5 КАДРОВ + ДВИЖЕНИЕ ПО ДОРОЖКЕ ЦЕЛИ МЕСЯЦА)
+   ========================================================================= */
+const RUNNER_FRAMES = [
+  "   o  \n  /|\\ \n  / \\ ",
+  "   o  \n  /|\\`\n _/ > ",
+  "   o/ \n  /|  \n  / > ",
+  "  _o_ \n  /|  \n < \\  ",
+  "   o  \n `|\\  \n  / > "
+];
+let runnerFrameIdx = 0;
+let runnerTimer = null;
+let runnerPatrolOffset = 0;
+let runnerPatrolDir = 1;
+
+function updateRunnerPositionAndStatus() {
+  const today = new Date();
+  const ym = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}`;
+  const goalKm = calcGoalForMonth(ym, state.goals);
+  const monthRuns = getRunsByTypeOnly().filter(r => r.date.startsWith(ym));
+  const actualKm = monthRuns.reduce((s, r) => s + r.km, 0);
+  const pct = goalKm > 0 ? Math.min(100, Math.round((actualKm / goalKm) * 100)) : 0;
+
+  $('runner-status-text').textContent = `Цель месяца (${ym}): ${fmtNum(actualKm, 1)} / ${fmtNum(goalKm, 0)} км (${pct}%)`;
+  $('runner-progress-fill').style.width = `${pct}%`;
+
+  const avatar = $('runner-avatar');
+  if (!avatar) return;
+  // Базовая позиция отражает процент выполнения цели месяца + небольшое живое движение
+  const baseLeft = Math.min(86, Math.max(2, pct * 0.84));
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finalLeft = (!state.settings.animEnabled || reducedMotion)
+    ? baseLeft
+    : Math.min(88, Math.max(1, baseLeft + runnerPatrolOffset));
+  avatar.style.left = `${finalLeft}%`;
+}
+
+function startRunnerAnimationLoop() {
+  if (runnerTimer) clearInterval(runnerTimer);
+  runnerTimer = setInterval(() => {
+    const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!state.settings.animEnabled || reducedMotion) {
+      $('runner-avatar').textContent = RUNNER_FRAMES[0];
+      updateRunnerPositionAndStatus();
+      return;
+    }
+    runnerFrameIdx = (runnerFrameIdx + 1) % RUNNER_FRAMES.length;
+    $('runner-avatar').textContent = RUNNER_FRAMES[runnerFrameIdx];
+    runnerPatrolOffset += runnerPatrolDir * 1.4;
+    if (runnerPatrolOffset > 5) runnerPatrolDir = -1;
+    if (runnerPatrolOffset < -2) runnerPatrolDir = 1;
+    updateRunnerPositionAndStatus();
+  }, 190);
+}
+
+/* =========================================================================
+   6. ОТРИСОВКА 10 KPI-КАРТОЧЕК И СРАВНЕНИЯ ПЛАН VS ФАКТ
+   ========================================================================= */
+function renderKPIs() {
+  const today = new Date();
+  const todayISO = toISO(today);
+  const ym = todayISO.slice(0, 7);
+  const start7 = addDaysISO(todayISO, -6);
+
+  const typeFilteredAll = getRunsByTypeOnly();
+  const runs7 = typeFilteredAll.filter(r => r.date >= start7 && r.date <= todayISO);
+  const runsCurMonth = typeFilteredAll.filter(r => r.date.startsWith(ym));
+  const periodRuns = getFilteredRuns();
+
+  // 1. Км за 7 дней + план за эти 7 дней
+  const km7 = runs7.reduce((s, r) => s + r.km, 0);
+  const days7List = listDaysBetween(start7, todayISO);
+  const plan7 = days7List.reduce((s, d) => s + calcPlanForDate(d, state.plans).planKm, 0);
+  const pct7 = plan7 > 0 ? Math.round((km7 / plan7) * 100) : (km7 > 0 ? 100 : 0);
+
+  $('kpi-km7').textContent = fmtNum(km7, 1);
+  $('kpi-km7-plan').textContent = `План: ${fmtNum(plan7, 1)} км`;
+  const b7 = $('kpi-km7-pct');
+  b7.textContent = `${pct7}%`;
+  b7.className = 'badge ' + getBadgeClassByPct(pct7);
+  $('kpi-km7-bar').style.width = `${Math.min(100, pct7)}%`;
+
+  // 2. Км за текущий месяц + цель месяца
+  const kmM = runsCurMonth.reduce((s, r) => s + r.km, 0);
+  const goalM = calcGoalForMonth(ym, state.goals);
+  const pctM = goalM > 0 ? Math.round((kmM / goalM) * 100) : 0;
+
+  $('kpi-kmm').textContent = fmtNum(kmM, 1);
+  $('kpi-kmm-goal').textContent = `Цель: ${fmtNum(goalM, 0)} км`;
+  const bm = $('kpi-kmm-pct');
+  bm.textContent = `${pctM}%`;
+  bm.className = 'badge ' + getBadgeClassByPct(pctM);
+  $('kpi-kmm-bar').style.width = `${Math.min(100, pctM)}%`;
+
+  // 3. Число тренировок
+  $('kpi-cnt-period').textContent = periodRuns.length;
+  $('kpi-cnt-7d').textContent = `7 дн: ${runs7.length}`;
+  $('kpi-cnt-m').textContent = `Месяц: ${runsCurMonth.length}`;
+
+  // 4. Средняя дистанция
+  const sumPeriodKm = periodRuns.reduce((s, r) => s + r.km, 0);
+  const avgKm = periodRuns.length > 0 ? sumPeriodKm / periodRuns.length : 0;
+  $('kpi-avg-km').textContent = periodRuns.length > 0 ? fmtNum(avgKm, 2) : '0';
+
+  // 5. Средний темп и скорость за период
+  const aggPaceSec = calcAggregatePaceSec(periodRuns);
+  const sumPeriodSec = periodRuns.reduce((s, r) => s + (r.durationSec || 0), 0);
+  const aggSpeed = calcSpeedKmh(sumPeriodKm, sumPeriodSec);
+  $('kpi-avg-pace').textContent = aggPaceSec ? formatPace(aggPaceSec) : '—';
+  $('kpi-avg-speed').textContent = aggSpeed ? `Скорость: ${fmtNum(aggSpeed, 1)} км/ч` : 'Скорость: — км/ч';
+
+  // 6. Средний пульс, взвешенный по км
+  const wPulse = calcWeightedPulse(periodRuns);
+  $('kpi-wpulse').textContent = wPulse ? Math.round(wPulse) : '—';
+
+  // 7. Средний максимальный пульс и пик
+  if (periodRuns.length > 0) {
+    const avgMax = periodRuns.reduce((s, r) => s + r.pulseMax, 0) / periodRuns.length;
+    const peak = Math.max(...periodRuns.map(r => r.pulseMax));
+    $('kpi-maxpulse').textContent = Math.round(avgMax);
+    $('kpi-peakpulse').textContent = `Пик: ${peak} уд/мин`;
+  } else {
+    $('kpi-maxpulse').textContent = '—';
+    $('kpi-peakpulse').textContent = 'Пик: — уд/мин';
+  }
+
+  // 8. Самая длинная тренировка
+  if (periodRuns.length > 0) {
+    const longestRun = periodRuns.reduce((best, r) => (r.km > best.km ? r : best), periodRuns[0]);
+    $('kpi-longest').textContent = fmtNum(longestRun.km, 2);
+    $('kpi-longest-date').textContent = `${fmtDateShort(longestRun.date)} (${longestRun.type})`;
+  } else {
+    $('kpi-longest').textContent = '0';
+    $('kpi-longest-date').textContent = 'Нет данных';
+  }
+
+  // 9. Серия дней подряд
+  const streaksAll = calcStreaks(typeFilteredAll, todayISO);
+  const streaksPeriod = calcStreaks(periodRuns, todayISO);
+  $('kpi-streak').textContent = streaksAll.current;
+  $('kpi-best-streak').textContent = `Макс. в периоде: ${streaksPeriod.longest} дн.`;
+
+  // 10. Тренд (4 недели к пред. 4 неделям)
+  const trend = calcFourWeekTrend(typeFilteredAll, todayISO);
+  const sign = trend.pctChange > 0 ? '+' : '';
+  $('kpi-trend').textContent = `${sign}${fmtNum(trend.pctChange, 1)}%`;
+  $('kpi-trend').style.color = trend.pctChange >= 0 ? 'var(--accent)' : 'var(--danger)';
+  $('kpi-trend-sub').textContent = `${fmtNum(trend.curKm, 1)} км vs ${fmtNum(trend.prevKm, 1)} км`;
+
+  updateRunnerPositionAndStatus();
+}
+
+// Сравнение факта с планом (с усреднением по дням и посуточная таблица)
+function renderPlanVsFactComparison() {
+  const mode = $('compare-mode').value; // 'week' | 'month'
+  const today = new Date();
+  const todayISO = toISO(today);
+
+  let startISO, endISO, titleStr;
+  if (mode === 'week') {
+    startISO = state.weekCursorMonday;
+    endISO = addDaysISO(startISO, 6);
+    titleStr = `Неделя ${fmtDateShort(startISO)} — ${fmtDateShort(endISO)}`;
+  } else {
+    const ym = todayISO.slice(0, 7);
+    startISO = `${ym}-01`;
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    endISO = `${ym}-${pad2(lastDay)}`;
+    titleStr = `Текущий месяц (${ym})`;
+  }
+
+  const days = listDaysBetween(startISO, endISO);
+  const typeRuns = getRunsByTypeOnly();
+
+  let totalPlan = 0;
+  let totalFact = 0;
+  let trainDaysPlanCount = 0;
+  let trainDaysFactCount = 0;
+  let cumPlan = 0;
+  let cumFact = 0;
+
+  const rowsHtml = days.map(d => {
+    const pInfo = calcPlanForDate(d, state.plans);
+    const dayRuns = typeRuns.filter(r => r.date === d);
+    const factKm = dayRuns.reduce((s, r) => s + r.km, 0);
+    const planKm = pInfo.planKm;
+
+    totalPlan += planKm;
+    totalFact += factKm;
+    if (!pInfo.isRest) trainDaysPlanCount++;
+    if (factKm > 0) trainDaysFactCount++;
+
+    cumPlan += planKm;
+    cumFact += factKm;
+
+    const diff = factKm - planKm;
+    const pct = planKm > 0 ? Math.round((factKm / planKm) * 100) : (factKm > 0 ? 100 : 100);
+    const badgeCls = pInfo.isRest && factKm === 0 ? 'badge-blue' : getBadgeClassByPct(pct);
+    const pctLabel = pInfo.isRest && factKm === 0 ? 'Отдых' : `${pct}%`;
+    const dowName = parseISO(d).toLocaleDateString('ru-RU', { weekday: 'short' });
+
+    return `<tr class="clickable-row" data-drill-day="${d}">
+      <td>${fmtDateShort(d)}</td>
+      <td>${dowName}</td>
+      <td>${pInfo.isRest ? '<span class="badge badge-blue">Отдых</span>' : '<span class="badge badge-green">Трен.</span>'}</td>
+      <td class="num">${fmtNum(planKm, 2)}</td>
+      <td class="num"><strong>${fmtNum(factKm, 2)}</strong></td>
+      <td class="num" style="color:${diff >= 0 ? 'var(--accent)' : 'var(--danger)'}">${diff >= 0 ? '+' : ''}${fmtNum(diff, 2)}</td>
+      <td class="num"><span class="badge ${badgeCls}">${pctLabel}</span></td>
+      <td class="num">${fmtNum(cumPlan, 1)}</td>
+      <td class="num">${fmtNum(cumFact, 1)}</td>
+    </tr>`;
+  }).join('');
+
+  $('daily-compare-tbody').innerHTML = rowsHtml;
+  $('daily-plan-caption').textContent = `${titleStr} • Всего план: ${fmtNum(totalPlan, 1)} км, факт: ${fmtNum(totalFact, 1)} км`;
+
+  const numDays = days.length || 1;
+  const avgFactPerCalendarDay = totalFact / numDays;
+  const avgPlanPerCalendarDay = totalPlan / numDays;
+  const avgFactPerTrainDay = trainDaysFactCount > 0 ? totalFact / trainDaysFactCount : 0;
+  const avgPlanPerTrainDay = trainDaysPlanCount > 0 ? totalPlan / trainDaysPlanCount : 0;
+  const totalDiff = totalFact - totalPlan;
+  const totalPct = totalPlan > 0 ? Math.round((totalFact / totalPlan) * 100) : (totalFact > 0 ? 100 : 0);
+  const summaryBadge = getBadgeClassByPct(totalPct);
+
+  $('plan-vs-fact-summary').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--muted);">Период сравнения:</span>
+      <strong>${titleStr}</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--muted);">Ср. факт / календарный день:</span>
+      <span><strong>${fmtNum(avgFactPerCalendarDay, 2)} км</strong> vs план ${fmtNum(avgPlanPerCalendarDay, 2)} км</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--muted);">Ср. факт / трен. день:</span>
+      <span><strong>${fmtNum(avgFactPerTrainDay, 2)} км</strong> vs план ${fmtNum(avgPlanPerTrainDay, 2)} км</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--muted);">Накопленный итог:</span>
+      <span><strong>${fmtNum(totalFact, 1)} км</strong> из ${fmtNum(totalPlan, 1)} км</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--muted);">Отклонение и выполнение:</span>
+      <span>
+        <strong style="color:${totalDiff >= 0 ? 'var(--accent)' : 'var(--danger)'}">${totalDiff >= 0 ? '+' : ''}${fmtNum(totalDiff, 1)} км</strong>
+        <span class="badge ${summaryBadge}" style="margin-left:6px;">${totalPct}%</span>
+      </span>
+    </div>
+  `;
+}
+/* =========================================================================
+   7. ИНТЕРАКТИВНЫЕ ГРАФИКИ CHART.JS + ДРИЛДАУН ПО КЛИКУ
+   ========================================================================= */
+let chartMonthInst = null;
+let chartWeekInst = null;
+let chartPacePulseInst = null;
+let chartZonesInst = null;
+let chartModalZonesInst = null;
+
+function getChartThemeColors() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    text: isLight ? '#334155' : '#cbd5e1',
+    grid: isLight ? 'rgba(148, 163, 184, 0.25)' : 'rgba(148, 163, 184, 0.14)',
+    accent: isLight ? '#16a34a' : '#22c55e',
+    accentFill: isLight ? 'rgba(22, 163, 74, 0.16)' : 'rgba(34, 197, 94, 0.18)',
+    blue: isLight ? '#2563eb' : '#3b82f6',
+    amber: isLight ? '#d97706' : '#f59e0b',
+    danger: isLight ? '#dc2626' : '#ef4444',
+    purple: isLight ? '#9333ea' : '#a855f7'
+  };
+}
+
+// 1. Месячный / Периодный линейный график (Факт, План, Цель месяца, Скользящее среднее)
+function renderMonthLineChart() {
+  const colors = getChartThemeColors();
+  const groupMode = $('month-chart-group').value; // 'day' | 'week' | 'cum'
+  const metric = state.filters.metric; // 'km' | 'pace' | 'pulse'
+  const maWindow = state.settings.maWindow || 7;
+  const bounds = getPeriodBounds();
+  const days = listDaysBetween(bounds.start, bounds.end);
+  const typeRuns = getRunsByTypeOnly();
+
+  let labels = [];
+  let factSeries = [];
+  let planSeries = [];
+  let goalLineSeries = [];
+  let clickTargets = []; // для дрилдауна по клику на точку
+
+  const curYM = bounds.end.slice(0, 7);
+  const monthGoal = calcGoalForMonth(curYM, state.goals);
+  const dailyGoalAvg = days.length > 0 ? monthGoal / days.length : 0;
+
+  if (groupMode === 'week') {
+    const weeksMap = new Map();
+    for (const d of days) {
+      const mon = getMondayISO(d);
+      if (!weeksMap.has(mon)) weeksMap.set(mon, []);
+      weeksMap.get(mon).push(d);
+    }
+    for (const [mon, wDays] of weeksMap.entries()) {
+      labels.push(`Нед. ${fmtDateShort(mon)}`);
+      clickTargets.push({ type: 'week', value: mon });
+      const wRuns = typeRuns.filter(r => wDays.includes(r.date));
+      const wKm = wRuns.reduce((s, r) => s + r.km, 0);
+      const wPlan = wDays.reduce((s, d) => s + calcPlanForDate(d, state.plans).planKm, 0);
+      if (metric === 'km') {
+        factSeries.push(Math.round(wKm * 100) / 100);
+        planSeries.push(Math.round(wPlan * 100) / 100);
+        goalLineSeries.push(Math.round((monthGoal / 4.33) * 100) / 100);
+      } else if (metric === 'pace') {
+        const p = calcAggregatePaceSec(wRuns);
+        factSeries.push(p ? Math.round((p / 60) * 100) / 100 : null);
+      } else {
+        const hp = calcWeightedPulse(wRuns);
+        factSeries.push(hp ? Math.round(hp) : null);
+      }
+    }
+  } else {
+    let cumF = 0;
+    let cumP = 0;
+    for (const d of days) {
+      labels.push(fmtDateShort(d));
+      clickTargets.push({ type: 'day', value: d });
+      const dRuns = typeRuns.filter(r => r.date === d);
+      const dKm = dRuns.reduce((s, r) => s + r.km, 0);
+      const dPlan = calcPlanForDate(d, state.plans).planKm;
+
+      if (groupMode === 'cum') {
+        cumF += dKm;
+        cumP += dPlan;
+        factSeries.push(Math.round(cumF * 100) / 100);
+        planSeries.push(Math.round(cumP * 100) / 100);
+        goalLineSeries.push(Math.round(monthGoal * 100) / 100);
+      } else {
+        if (metric === 'km') {
+          factSeries.push(Math.round(dKm * 100) / 100);
+          planSeries.push(Math.round(dPlan * 100) / 100);
+          goalLineSeries.push(Math.round(dailyGoalAvg * 100) / 100);
+        } else if (metric === 'pace') {
+          const p = calcAggregatePaceSec(dRuns);
+          factSeries.push(p ? Math.round((p / 60) * 100) / 100 : null);
+        } else {
+          const hp = calcWeightedPulse(dRuns);
+          factSeries.push(hp ? Math.round(hp) : null);
+        }
+      }
+    }
+  }
+
+  const maSeries = calcMovingAverage(factSeries, groupMode === 'week' ? 3 : maWindow);
+  const datasets = [
+    {
+      label: metric === 'km' ? 'Факт (км)' : (metric === 'pace' ? 'Темп (мин/км)' : 'Пульс (уд/мин)'),
+      data: factSeries,
+      borderColor: colors.accent,
+      backgroundColor: colors.accentFill,
+      fill: groupMode === 'cum',
+      tension: 0.25,
+      pointRadius: 3.5,
+      pointHoverRadius: 6
+    },
+    {
+      label: `Скользящее среднее (${groupMode === 'week' ? '3 нед.' : maWindow + ' дн.'})`,
+      data: maSeries,
+      borderColor: colors.amber,
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.35
+    }
+  ];
+
+  if (metric === 'km') {
+    datasets.push({
+      label: 'План (км)',
+      data: planSeries,
+      borderColor: colors.blue,
+      borderDash: [5, 5],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.15
+    });
+    datasets.push({
+      label: groupMode === 'cum' ? `Цель месяца (${monthGoal} км)` : 'Усред. линия цели месяца',
+      data: goalLineSeries,
+      borderColor: colors.purple,
+      borderDash: [2, 4],
+      borderWidth: 1.5,
+      pointRadius: 0
+    });
+  }
+
+  if (chartMonthInst) chartMonthInst.destroy();
+  chartMonthInst = new Chart($('canvas-month'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: colors.text, boxWidth: 12, font: { size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: colors.text, maxTicksLimit: 12 }, grid: { color: colors.grid } },
+        y: { ticks: { color: colors.text }, grid: { color: colors.grid }, beginAtZero: metric === 'km' }
+      },
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        const idx = elements[0].index;
+        const target = clickTargets[idx];
+        if (!target) return;
+        if (target.type === 'week') drillToWeek(target.value);
+        else if (target.type === 'day') drillToDay(target.value);
+      }
+    }
+  });
+}
+
+// 2. Недельный столбчатый график (Факт столбцами, План полупрозрачным контуром рядом, СС линией поверх)
+function renderWeekBarChart() {
+  const colors = getChartThemeColors();
+  const monISO = state.weekCursorMonday;
+  const sunISO = addDaysISO(monISO, 6);
+  const weekDays = listDaysBetween(monISO, sunISO);
+  const typeRuns = getRunsByTypeOnly();
+
+  $('chart-week-title').textContent = `📊 Неделя ${fmtDateShort(monISO)} — ${fmtDateShort(sunISO)} (Факт vs План + СС)`;
+
+  const labels = weekDays.map(d => {
+    const wd = parseISO(d).toLocaleDateString('ru-RU', { weekday: 'short' });
+    return `${wd} ${d.slice(8, 10)}.${d.slice(5, 7)}`;
+  });
+
+  const factData = weekDays.map(d => {
+    const r = typeRuns.filter(x => x.date === d);
+    return Math.round(r.reduce((s, x) => s + x.km, 0) * 100) / 100;
+  });
+
+  const planData = weekDays.map(d => {
+    return Math.round(calcPlanForDate(d, state.plans).planKm * 100) / 100;
+  });
+
+  const maData = calcMovingAverage(factData, 3);
+
+  if (chartWeekInst) chartWeekInst.destroy();
+  chartWeekInst = new Chart($('canvas-week'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Факт (км)',
+          data: factData,
+          backgroundColor: 'rgba(34, 197, 94, 0.78)',
+          borderColor: colors.accent,
+          borderWidth: 1.5,
+          borderRadius: 6
+        },
+        {
+          type: 'bar',
+          label: 'План (контур, км)',
+          data: planData,
+          backgroundColor: 'rgba(59, 130, 246, 0.14)',
+          borderColor: colors.blue,
+          borderWidth: 2,
+          borderRadius: 6
+        },
+        {
+          type: 'line',
+          label: 'Скользящее среднее',
+          data: maData,
+          borderColor: colors.amber,
+          backgroundColor: colors.amber,
+          borderWidth: 2.5,
+          tension: 0.35,
+          pointRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: colors.text, boxWidth: 12, font: { size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+        y: { ticks: { color: colors.text }, grid: { color: colors.grid }, beginAtZero: true }
+      },
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        const idx = elements[0].index;
+        if (weekDays[idx]) drillToDay(weekDays[idx]);
+      }
+    }
+  });
+}
+
+// 3. График Темпа и Пульса (с переключением на шкалу км и со скользящим средним)
+function renderPacePulseChart() {
+  const colors = getChartThemeColors();
+  const axisMode = $('pace-chart-axis').value; // 'date' | 'km'
+  const maWin = Math.min(7, state.settings.maWindow || 7);
+  const runs = [...getFilteredRuns()].sort((a, b) => {
+    if (axisMode === 'km') return a.km - b.km;
+    return (a.date + a.time).localeCompare(b.date + b.time);
+  });
+
+  const labels = runs.map(r => axisMode === 'km' ? `${fmtNum(r.km, 1)} км` : fmtDateShort(r.date));
+  const paceMinList = runs.map(r => {
+    const p = calcPaceSecPerKm(r.km, r.durationSec);
+    return p ? Math.round((p / 60) * 100) / 100 : null;
+  });
+  const pulseList = runs.map(r => r.pulseAvg);
+  const paceMA = calcMovingAverage(paceMinList, maWin);
+  const pulseMA = calcMovingAverage(pulseList, maWin);
+
+  if (chartPacePulseInst) chartPacePulseInst.destroy();
+  chartPacePulseInst = new Chart($('canvas-pace-pulse'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Темп (мин/км)',
+          data: paceMinList,
+          borderColor: colors.blue,
+          backgroundColor: colors.blue,
+          yAxisID: 'yPace',
+          tension: 0.25,
+          pointRadius: 3.5
+        },
+        {
+          label: 'Темп СС',
+          data: paceMA,
+          borderColor: colors.purple,
+          borderDash: [4, 4],
+          yAxisID: 'yPace',
+          pointRadius: 0,
+          tension: 0.35
+        },
+        {
+          label: 'Ср. пульс (уд/мин)',
+          data: pulseList,
+          borderColor: colors.danger,
+          backgroundColor: colors.danger,
+          yAxisID: 'yPulse',
+          tension: 0.25,
+          pointRadius: 3.5
+        },
+        {
+          label: 'Пульс СС',
+          data: pulseMA,
+          borderColor: colors.amber,
+          borderDash: [4, 4],
+          yAxisID: 'yPulse',
+          pointRadius: 0,
+          tension: 0.35
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: colors.text, boxWidth: 11, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.yAxisID === 'yPace') {
+                return `${ctx.dataset.label}: ${formatPace(ctx.parsed.y * 60)} /км`;
+              }
+              return `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)} уд/мин`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: colors.text, maxTicksLimit: 10 }, grid: { color: colors.grid } },
+        yPace: {
+          type: 'linear',
+          position: 'left',
+          ticks: {
+            color: colors.blue,
+            callback: v => formatPace(v * 60)
+          },
+          grid: { color: colors.grid }
+        },
+        yPulse: {
+          type: 'linear',
+          position: 'right',
+          ticks: { color: colors.danger },
+          grid: { drawOnChartArea: false }
+        }
+      },
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        const idx = elements[0].index;
+        if (runs[idx]) openWorkoutModal(runs[idx].id);
+      }
+    }
+  });
+}
+
+// 4. Круговая диаграмма пульсовых зон
+function renderZonesPieChart() {
+  const colors = getChartThemeColors();
+  const mode = $('zones-metric-mode').value; // 'count' | 'km'
+  const zCfg = state.settings.zones;
+  const th = zCfg.thresholds || [60, 70, 80, 90];
+  $('zones-subtitle').textContent = `От ЧСС макс: ${zCfg.hrMax} уд/мин (${th.join('/')}%)`;
+
+  const runs = getFilteredRuns();
+  const buckets = [0, 0, 0, 0, 0];
+  for (const r of runs) {
+    const zIdx = getPulseZoneIndex(r.pulseAvg, zCfg);
+    buckets[zIdx] += mode === 'km' ? r.km : 1;
+  }
+
+  const zoneLabels = [
+    `Z1 Восст. (<${th[0]}%)`,
+    `Z2 Аэроб. (${th[0]}–${th[1]}%)`,
+    `Z3 Темп. (${th[1]}–${th[2]}%)`,
+    `Z4 Порог. (${th[2]}–${th[3]}%)`,
+    `Z5 Макс. (>${th[3]}%)`
+  ];
+
+  if (chartZonesInst) chartZonesInst.destroy();
+  chartZonesInst = new Chart($('canvas-zones'), {
+    type: 'doughnut',
+    data: {
+      labels: zoneLabels,
+      datasets: [{
+        data: buckets.map(v => Math.round(v * 100) / 100),
+        backgroundColor: ['#38bdf8', '#22c55e', '#eab308', '#f97316', '#ef4444'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: colors.text, boxWidth: 12, font: { size: 11 } } }
+      },
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        const zIdx = elements[0].index;
+        const zRuns = runs.filter(r => getPulseZoneIndex(r.pulseAvg, zCfg) === zIdx);
+        showDrillListPanel(`Тренировки в пульсовой зоне ${zoneLabels[zIdx]}`, zRuns);
+      }
+    }
+  });
+}
+
+/* =========================================================================
+   8. ГОДОВАЯ ТЕПЛОВАЯ КАРТА АКТИВНОСТИ (КАК GITHUB)
+   ========================================================================= */
+function populateHeatmapYearSelect() {
+  const sel = $('heatmap-year');
+  const curY = new Date().getFullYear();
+  const years = new Set([curY, curY - 1]);
+  state.runs.forEach(r => {
+    if (r.date) years.add(Number(r.date.slice(0, 4)));
+  });
+  const sortedYears = Array.from(years).sort((a, b) => b - a);
+  sel.innerHTML = sortedYears.map(y => `<option value="${y}">${y} год</option>`).join('');
+  sel.value = String(state.drill.year || curY);
+}
+
+function renderYearHeatmap() {
+  const year = Number($('heatmap-year').value) || new Date().getFullYear();
+  $('heatmap-title').textContent = `🗓 Тепловая карта активности за ${year} год`;
+
+  const startISO = `${year}-01-01`;
+  const endISO = `${year}-12-31`;
+  const allDays = listDaysBetween(startISO, endISO);
+  const typeRuns = getRunsByTypeOnly().filter(r => r.date.startsWith(String(year)));
+
+  const kmByDate = {};
+  for (const r of typeRuns) {
+    kmByDate[r.date] = (kmByDate[r.date] || 0) + r.km;
+  }
+
+  // Выравнивание первого дня года по дню недели (Пн=0 .. Вс=6)
+  const firstDow = (parseISO(startISO).getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) {
+    cells.push('<div style="width:13px;height:13px;"></div>');
+  }
+
+  for (const d of allDays) {
+    const km = kmByDate[d] || 0;
+    let lvl = '';
+    if (km > 0 && km < 5) lvl = 'heat-l1';
+    else if (km >= 5 && km < 10) lvl = 'heat-l2';
+    else if (km >= 10 && km < 16) lvl = 'heat-l3';
+    else if (km >= 16) lvl = 'heat-l4';
+
+    const title = `${fmtDateFull(d)}: ${km > 0 ? fmtNum(km, 2) + ' км' : 'нет пробежек'}`;
+    cells.push(`<div class="heat-cell ${lvl}" data-heat-day="${d}" title="${title}"></div>`);
+  }
+
+  $('heatmap-grid').innerHTML = cells.join('');
+}
+/* =========================================================================
+   9. ИЕРАРХИЧЕСКИЙ ДРИЛДАУН: ГОД → МЕСЯЦ → НЕДЕЛЯ → ДЕНЬ → ТРЕНИРОВКА
+   ========================================================================= */
+function renderDrillBreadcrumbs() {
+  const d = state.drill;
+  const crumbs = [];
+
+  crumbs.push({
+    label: `Год: ${d.year}`,
+    level: 'year',
+    active: d.level === 'year'
+  });
+
+  if (d.month) {
+    crumbs.push({
+      label: `Месяц: ${d.month}`,
+      level: 'month',
+      active: d.level === 'month'
+    });
+  }
+  if (d.weekMonday) {
+    crumbs.push({
+      label: `Неделя от ${fmtDateShort(d.weekMonday)}`,
+      level: 'week',
+      active: d.level === 'week'
+    });
+  }
+  if (d.day) {
+    crumbs.push({
+      label: `День: ${fmtDateShort(d.day)}`,
+      level: 'day',
+      active: d.level === 'day'
+    });
+  }
+  if (d.workoutId) {
+    crumbs.push({
+      label: `Тренировка`,
+      level: 'workout',
+      active: d.level === 'workout'
+    });
+  }
+
+  $('drill-breadcrumbs').innerHTML = crumbs.map((c, idx) => {
+    const sep = idx > 0 ? '<span class="crumb-sep">→</span>' : '';
+    return `${sep}<span class="crumb ${c.active ? 'current' : ''}" data-crumb-level="${c.level}">${c.label}</span>`;
+  }).join('');
+}
+
+function drillToYear(yearNum) {
+  state.drill.level = 'year';
+  state.drill.year = Number(yearNum) || new Date().getFullYear();
+  state.drill.month = null;
+  state.drill.weekMonday = null;
+  state.drill.day = null;
+  state.drill.workoutId = null;
+  renderDrillBreadcrumbs();
+
+  // Показываем сводку по месяцам выбранного года для перехода на уровень Месяц
+  const yStr = String(state.drill.year);
+  const yearRuns = getRunsByTypeOnly().filter(r => r.date.startsWith(yStr));
+  const monthsRows = [];
+  for (let m = 1; m <= 12; m++) {
+    const ym = `${yStr}-${pad2(m)}`;
+    const mRuns = yearRuns.filter(r => r.date.startsWith(ym));
+    const km = mRuns.reduce((s, r) => s + r.km, 0);
+    const goal = calcGoalForMonth(ym, state.goals);
+    const pct = goal > 0 ? Math.round((km / goal) * 100) : 0;
+    const wp = calcWeightedPulse(mRuns);
+    const pace = calcAggregatePaceSec(mRuns);
+    monthsRows.push(`<tr class="clickable-row" data-drill-month="${ym}">
+      <td><strong>${ym}</strong></td>
+      <td class="num">${mRuns.length}</td>
+      <td class="num"><strong>${fmtNum(km, 1)} км</strong></td>
+      <td class="num">${fmtNum(goal, 0)} км (<span class="badge ${getBadgeClassByPct(pct)}">${pct}%</span>)</td>
+      <td class="num">${pace ? formatPace(pace) : '—'}</td>
+      <td class="num">${wp ? Math.round(wp) : '—'}</td>
+    </tr>`);
+  }
+
+  $('drill-panel-title').textContent = `📂 Уровень 1 (Год ${yStr}) — кликните по месяцу для перехода на уровень «Месяц»`;
+  $('drill-panel-body').innerHTML = `
+    <div class="table-wrap" style="max-height:260px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Месяц</th>
+            <th class="num">Тренировок</th>
+            <th class="num">Факт (км)</th>
+            <th class="num">Цель месяца</th>
+            <th class="num">Ср. темп</th>
+            <th class="num">Ср. пульс (на км)</th>
+          </tr>
+        </thead>
+        <tbody>${monthsRows.join('')}</tbody>
+      </table>
+    </div>
+  `;
+  $('drill-panel-card').style.display = 'block';
+}
+
+function drillToMonth(ymStr) {
+  state.drill.level = 'month';
+  state.drill.year = Number(ymStr.slice(0, 4));
+  state.drill.month = ymStr;
+  state.drill.weekMonday = null;
+  state.drill.day = null;
+  state.drill.workoutId = null;
+
+  // Синхронизируем фильтр периода на этот месяц
+  const [y, m] = ymStr.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  state.filters.period = 'custom';
+  state.filters.from = `${ymStr}-01`;
+  state.filters.to = `${ymStr}-${pad2(lastDay)}`;
+  $('filter-period').value = 'custom';
+  $('custom-dates-wrap').style.display = 'inline-flex';
+  $('filter-from').value = state.filters.from;
+  $('filter-to').value = state.filters.to;
+
+  renderAll();
+
+  const days = listDaysBetween(state.filters.from, state.filters.to);
+  const weeksSet = Array.from(new Set(days.map(d => getMondayISO(d))));
+  const typeRuns = getRunsByTypeOnly();
+
+  const wRows = weeksSet.map(mon => {
+    const sun = addDaysISO(mon, 6);
+    const wRuns = typeRuns.filter(r => r.date >= mon && r.date <= sun);
+    const km = wRuns.reduce((s, r) => s + r.km, 0);
+    const wPlan = listDaysBetween(mon, sun).reduce((s, d) => s + calcPlanForDate(d, state.plans).planKm, 0);
+    const pct = wPlan > 0 ? Math.round((km / wPlan) * 100) : 0;
+    return `<tr class="clickable-row" data-drill-week="${mon}">
+      <td><strong>Неделя ${fmtDateShort(mon)} — ${fmtDateShort(sun)}</strong></td>
+      <td class="num">${wRuns.length}</td>
+      <td class="num"><strong>${fmtNum(km, 1)} км</strong></td>
+      <td class="num">${fmtNum(wPlan, 1)} км (<span class="badge ${getBadgeClassByPct(pct)}">${pct}%</span>)</td>
+      <td class="num">${formatPace(calcAggregatePaceSec(wRuns))}</td>
+      <td class="num">${calcWeightedPulse(wRuns) ? Math.round(calcWeightedPulse(wRuns)) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  $('drill-panel-title').textContent = `📂 Уровень 2 (Месяц ${ymStr}) — кликните по неделе для перехода на уровень «Неделя»`;
+  $('drill-panel-body').innerHTML = `
+    <div class="table-wrap" style="max-height:240px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Неделя</th>
+            <th class="num">Пробежек</th>
+            <th class="num">Факт (км)</th>
+            <th class="num">План недели</th>
+            <th class="num">Ср. темп</th>
+            <th class="num">Ср. пульс (на км)</th>
+          </tr>
+        </thead>
+        <tbody>${wRows}</tbody>
+      </table>
+    </div>
+  `;
+  $('drill-panel-card').style.display = 'block';
+  renderDrillBreadcrumbs();
+}
+
+function drillToWeek(mondayISO) {
+  const mon = getMondayISO(mondayISO);
+  const sun = addDaysISO(mon, 6);
+  state.drill.level = 'week';
+  state.drill.year = Number(mon.slice(0, 4));
+  state.drill.month = mon.slice(0, 7);
+  state.drill.weekMonday = mon;
+  state.drill.day = null;
+  state.drill.workoutId = null;
+  state.weekCursorMonday = mon;
+
+  renderAll();
+
+  const wDays = listDaysBetween(mon, sun);
+  const typeRuns = getRunsByTypeOnly();
+  const dRows = wDays.map(d => {
+    const dRuns = typeRuns.filter(r => r.date === d);
+    const km = dRuns.reduce((s, r) => s + r.km, 0);
+    const pInfo = calcPlanForDate(d, state.plans);
+    return `<tr class="clickable-row" data-drill-day="${d}">
+      <td><strong>${fmtDateFull(d)}</strong></td>
+      <td class="num">${dRuns.length}</td>
+      <td class="num">${fmtNum(pInfo.planKm, 2)} км ${pInfo.isRest ? '(отдых)' : ''}</td>
+      <td class="num"><strong>${fmtNum(km, 2)} км</strong></td>
+      <td class="num">${formatPace(calcAggregatePaceSec(dRuns))}</td>
+      <td class="num">${calcWeightedPulse(dRuns) ? Math.round(calcWeightedPulse(dRuns)) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  $('drill-panel-title').textContent = `📂 Уровень 3 (Неделя ${fmtDateShort(mon)} — ${fmtDateShort(sun)}) — кликните по дню`;
+  $('drill-panel-body').innerHTML = `
+    <div class="table-wrap" style="max-height:250px;">
+      <table>
+        <thead>
+          <tr>
+            <th>День</th>
+            <th class="num">Тренировок</th>
+            <th class="num">План дня</th>
+            <th class="num">Факт дня</th>
+            <th class="num">Ср. темп</th>
+            <th class="num">Ср. ЧСС</th>
+          </tr>
+        </thead>
+        <tbody>${dRows}</tbody>
+      </table>
+    </div>
+  `;
+  $('drill-panel-card').style.display = 'block';
+  renderDrillBreadcrumbs();
+}
+
+function drillToDay(dayISO) {
+  state.drill.level = 'day';
+  state.drill.year = Number(dayISO.slice(0, 4));
+  state.drill.month = dayISO.slice(0, 7);
+  state.drill.weekMonday = getMondayISO(dayISO);
+  state.drill.day = dayISO;
+  state.drill.workoutId = null;
+  state.weekCursorMonday = state.drill.weekMonday;
+
+  renderWeekBarChart();
+  renderDrillBreadcrumbs();
+
+  const dayRuns = state.runs.filter(r => r.date === dayISO);
+  const pInfo = calcPlanForDate(dayISO, state.plans);
+  showDrillListPanel(
+    `📂 Уровень 4 (День ${fmtDateFull(dayISO)}) • План дня: ${fmtNum(pInfo.planKm, 2)} км ${pInfo.isRest ? '(день отдыха)' : ''}`,
+    dayRuns
+  );
+}
+
+function showDrillListPanel(title, runsList) {
+  $('drill-panel-title').textContent = title;
+  if (!runsList || runsList.length === 0) {
+    $('drill-panel-body').innerHTML = `<div class="empty-state">За этот период/день тренировок нет.</div>`;
+  } else {
+    const rows = runsList.map(r => {
+      const pace = calcPaceSecPerKm(r.km, r.durationSec);
+      return `<tr class="clickable-row" data-open-workout="${r.id}">
+        <td>${fmtDateShort(r.date)}</td>
+        <td>${r.time}</td>
+        <td><span class="badge badge-blue">${r.type}</span></td>
+        <td class="num"><strong>${fmtNum(r.km, 2)} км</strong></td>
+        <td class="num">${formatDurationSec(r.durationSec)}</td>
+        <td class="num">${formatPace(pace)} /км</td>
+        <td class="num">${r.pulseAvg} / ${r.pulseMax}</td>
+        <td>${r.notes || '—'}</td>
+      </tr>`;
+    }).join('');
+    $('drill-panel-body').innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Кликните по строке тренировки для открытия уровня 5 (модальная карточка тренировки)</div>
+      <div class="table-wrap" style="max-height:240px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th><th>Время</th><th>Тип</th><th class="num">Км</th>
+              <th class="num">Длит.</th><th class="num">Темп</th><th class="num">ЧСС ср/макс</th><th>Заметки</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+  $('drill-panel-card').style.display = 'block';
+}
+
+// Уровень 5 дрилдауна — Модальное окно деталей конкретной тренировки + мини-график распределения пульса
+function openWorkoutModal(workoutId) {
+  const run = state.runs.find(r => r.id === workoutId);
+  if (!run) return;
+
+  state.drill.level = 'workout';
+  state.drill.year = Number(run.date.slice(0, 4));
+  state.drill.month = run.date.slice(0, 7);
+  state.drill.weekMonday = getMondayISO(run.date);
+  state.drill.day = run.date;
+  state.drill.workoutId = run.id;
+  renderDrillBreadcrumbs();
+
+  const paceSec = calcPaceSecPerKm(run.km, run.durationSec);
+  const speedKmh = calcSpeedKmh(run.km, run.durationSec);
+  const zCfg = state.settings.zones;
+  const mainZone = getPulseZoneIndex(run.pulseAvg, zCfg) + 1;
+
+  $('modal-workout-title').textContent = `🏃 Тренировка ${fmtDateFull(run.date)} в ${run.time}`;
+  $('modal-workout-content').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-item"><div class="lbl">Дистанция</div><div class="val" style="color:var(--accent)">${fmtNum(run.km, 2)} км</div></div>
+      <div class="detail-item"><div class="lbl">Время</div><div class="val">${formatDurationSec(run.durationSec)}</div></div>
+      <div class="detail-item"><div class="lbl">Средний темп</div><div class="val" style="color:var(--blue)">${formatPace(paceSec)} /км</div></div>
+      <div class="detail-item"><div class="lbl">Средняя скорость</div><div class="val">${fmtNum(speedKmh, 2)} км/ч</div></div>
+      <div class="detail-item"><div class="lbl">Пульс (ср. / макс.)</div><div class="val" style="color:var(--danger)">${run.pulseAvg} / ${run.pulseMax} уд/мин</div></div>
+      <div class="detail-item"><div class="lbl">Тип и пульсовая зона</div><div class="val">${run.type} (Z${mainZone})</div></div>
+    </div>
+    <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;">
+      <strong>Заметки:</strong> ${run.notes ? run.notes : 'Нет заметок'}
+    </div>
+  `;
+
+  // Строим мини-график распределения времени по 5 пульсовым зонам на основе ср. и макс. пульса
+  const dist = [5, 10, 10, 10, 5];
+  const centerIdx = getPulseZoneIndex(run.pulseAvg, zCfg);
+  const maxIdx = getPulseZoneIndex(run.pulseMax, zCfg);
+  dist[centerIdx] += 50;
+  if (centerIdx > 0) dist[centerIdx - 1] += 15;
+  if (maxIdx > centerIdx) dist[maxIdx] += 15;
+  const sumD = dist.reduce((a, b) => a + b, 0);
+  const pctDist = dist.map(v => Math.round((v / sumD) * 100));
+
+  const colors = getChartThemeColors();
+  if (chartModalZonesInst) chartModalZonesInst.destroy();
+  chartModalZonesInst = new Chart($('canvas-modal-zones'), {
+    type: 'bar',
+    data: {
+      labels: ['Z1 Восст.', 'Z2 Аэроб.', 'Z3 Темп.', 'Z4 Порог.', 'Z5 Макс.'],
+      datasets: [{
+        label: 'Доля времени тренировки (%)',
+        data: pctDist,
+        backgroundColor: ['#38bdf8', '#22c55e', '#eab308', '#f97316', '#ef4444'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+        y: { ticks: { color: colors.text, callback: v => v + '%' }, grid: { color: colors.grid }, beginAtZero: true, max: 100 }
+      }
+    }
+  });
+
+  $('modal-btn-edit').onclick = () => {
+    closeModal('modal-workout');
+    startEditWorkout(run.id);
+  };
+  $('modal-btn-delete').onclick = () => {
+    closeModal('modal-workout');
+    deleteWorkout(run.id);
+  };
+
+  openModal('modal-workout');
+}
+
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+/* =========================================================================
+   10. ЖУРНАЛ ТРЕНИРОВОК (ПОИСК, СОРТИРОВКА, РЕДАКТИРОВАНИЕ, УДАЛЕНИЕ)
+   ========================================================================= */
+function renderWorkoutsTable() {
+  const q = state.filters.search.trim().toLowerCase();
+  const baseRuns = getFilteredRuns().map(r => {
+    const paceSec = calcPaceSecPerKm(r.km, r.durationSec) || 0;
+    return Object.assign({}, r, { paceSec });
+  });
+
+  const searched = baseRuns.filter(r => {
+    if (!q) return true;
+    const hay = `${r.date} ${r.time} ${r.type} ${r.notes || ''} ${r.km} ${r.pulseAvg}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  const sf = state.filters.sortField;
+  const dir = state.filters.sortAsc ? 1 : -1;
+  searched.sort((a, b) => {
+    if (sf === 'date') {
+      return ((a.date + a.time).localeCompare(b.date + b.time)) * dir;
+    }
+    if (typeof a[sf] === 'number' && typeof b[sf] === 'number') {
+      return (a[sf] - b[sf]) * dir;
+    }
+    return String(a[sf] || '').localeCompare(String(b[sf] || ''), 'ru') * dir;
+  });
+
+  $('runs-count-label').textContent = searched.length;
+  $('runs-empty').style.display = searched.length === 0 ? 'block' : 'none';
+
+  $('runs-tbody').innerHTML = searched.map(r => `
+    <tr class="clickable-row" data-row-workout="${r.id}">
+      <td>${fmtDateShort(r.date)} <span style="color:var(--muted);font-size:11px;">(${r.date.slice(0,4)})</span></td>
+      <td>${r.time}</td>
+      <td><span class="badge badge-blue">${r.type}</span></td>
+      <td class="num"><strong>${fmtNum(r.km, 2)}</strong></td>
+      <td class="num">${formatDurationSec(r.durationSec)}</td>
+      <td class="num">${formatPace(r.paceSec)}</td>
+      <td class="num">${r.pulseAvg}</td>
+      <td class="num">${r.pulseMax}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;">${r.notes || '—'}</td>
+      <td class="num" onclick="event.stopPropagation()">
+        <button type="button" class="btn-secondary btn-sm" data-edit-id="${r.id}" title="Редактировать">✎</button>
+        <button type="button" class="btn-danger btn-sm" data-del-id="${r.id}" title="Удалить">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function startEditWorkout(id) {
+  const r = state.runs.find(x => x.id === id);
+  if (!r) return;
+  $('f-id').value = r.id;
+  $('f-date').value = r.date;
+  $('f-time').value = r.time;
+  $('f-km').value = r.km;
+  $('f-duration').value = formatDurationSec(r.durationSec);
+  $('f-pulse-avg').value = r.pulseAvg;
+  $('f-pulse-max').value = r.pulseMax;
+  $('f-type').value = r.type;
+  $('f-notes').value = r.notes || '';
+  $('form-title').textContent = '✎ Редактировать тренировку';
+  $('btn-submit-run').textContent = 'Обновить тренировку';
+  $('btn-cancel-edit').style.display = 'inline-flex';
+  updateFormPreview();
+  window.scrollTo({ top: 180, behavior: 'smooth' });
+}
+
+function resetWorkoutForm() {
+  const now = new Date();
+  $('f-id').value = '';
+  $('f-date').value = toISO(now);
+  $('f-time').value = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  $('f-km').value = '';
+  $('f-duration').value = '';
+  $('f-pulse-avg').value = '';
+  $('f-pulse-max').value = '';
+  $('f-type').value = 'лёгкая';
+  $('f-notes').value = '';
+  const voiceInput = $('f-voice-text');
+  if (voiceInput) voiceInput.value = '';
+  $('form-title').textContent = '➕ Добавить тренировку';
+  $('btn-submit-run').textContent = 'Сохранить тренировку';
+  $('btn-cancel-edit').style.display = 'none';
+  $('form-msg').textContent = '';
+  $('form-msg').className = 'form-msg';
+  updateFormPreview();
+}
+
+function deleteWorkout(id) {
+  const r = state.runs.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm(`Удалить тренировку от ${r.date} (${r.km} км)?`)) return;
+  state.runs = state.runs.filter(x => x.id !== id);
+  saveAllState();
+  renderAll();
+}
+
+function updateFormPreview() {
+  const km = parseFloat($('f-km').value);
+  const durSec = parseDurationToSec($('f-duration').value);
+  const pace = calcPaceSecPerKm(km, durSec);
+  const speed = calcSpeedKmh(km, durSec);
+  $('calc-preview-pace').textContent = `Расчётный темп: ${pace ? formatPace(pace) + ' мин/км' : '—'}`;
+  $('calc-preview-speed').textContent = `Скорость: ${speed ? fmtNum(speed, 2) + ' км/ч' : '—'}`;
+}
+
+/* =========================================================================
+   11. УПРАВЛЕНИЕ ПЛАНАМИ НЕДЕЛИ, ЦЕЛЯМИ МЕСЯЦА И ЭКСПОРТОМ / ИМПОРТОМ
+   ========================================================================= */
+function syncPlanControlsFromState() {
+  const scope = $('plan-week-scope').value;
+  const spec = (scope === 'current' && state.plans.byWeek[state.weekCursorMonday])
+    ? state.plans.byWeek[state.weekCursorMonday]
+    : state.plans.defaultWeek;
+
+  $('plan-week-km').value = spec.weeklyKm;
+  const boxes = document.querySelectorAll('#plan-rest-days .day-box');
+  boxes.forEach(b => {
+    const dow = Number(b.dataset.dow);
+    b.classList.toggle('rest', spec.restDays.includes(dow));
+  });
+  updatePlanDailyCalcLabel();
+
+  const ym = toISO(new Date()).slice(0, 7);
+  const gScope = $('goal-month-scope').value;
+  const curGoal = gScope === 'current'
+    ? calcGoalForMonth(ym, state.goals)
+    : state.goals.defaultGoal;
+  $('goal-month-input').value = curGoal;
+
+  document.querySelectorAll('.goal-preset').forEach(btn => {
+    const v = btn.dataset.val;
+    const isMatch = (v === String(curGoal)) || (v === 'custom' && !['50', '75', '100'].includes(String(curGoal)));
+    btn.classList.toggle('btn-active', isMatch);
+  });
+}
+
+function getSelectedRestDaysFromDOM() {
+  const res = [];
+  document.querySelectorAll('#plan-rest-days .day-box.rest').forEach(b => {
+    res.push(Number(b.dataset.dow));
+  });
+  return res;
+}
+
+function updatePlanDailyCalcLabel() {
+  const wKm = parseFloat($('plan-week-km').value) || 0;
+  const restDays = getSelectedRestDaysFromDOM();
+  if (restDays.length >= 7) {
+    $('plan-daily-calc').textContent = '0 км (все дни — отдых)';
+    return;
+  }
+  const perDay = calcTrainingDayPlanKm(wKm, restDays);
+  $('plan-daily-calc').textContent = `${fmtNum(perDay, 2)} км / трен. день`;
+}
+
+// Парсер CSV строк с предпросмотром и пропуском строк с ошибками
+function parseCSVContent(rawText) {
+  const lines = String(rawText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const valid = [];
+  const errors = [];
+
+  lines.forEach((line, idx) => {
+    // Пропускаем заголовок, если первая строка содержит слово "дата" или "date"
+    if (idx === 0 && /дата|date/i.test(line)) return;
+    const cols = line.split(',').map(c => c.trim());
+    if (cols.length < 6) {
+      errors.push({ line: idx + 1, reason: 'Меньше 6 столбцов' });
+      return;
+    }
+    const [dateStr, timeStr, kmStr, durStr, pAvgStr, pMaxStr, typeStr, ...notesRest] = cols;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      errors.push({ line: idx + 1, reason: `Некорректная дата (${dateStr})` });
+      return;
+    }
+    const timeVal = /^\d{2}:\d{2}$/.test(timeStr) ? timeStr : '07:00';
+    const km = parseFloat(kmStr);
+    const durationSec = parseDurationToSec(durStr);
+    const pulseAvg = parseInt(pAvgStr, 10);
+    const pulseMax = parseInt(pMaxStr, 10);
+    const typeClean = (typeStr || 'лёгкая').toLowerCase();
+    const type = WORKOUT_TYPES.includes(typeClean) ? typeClean : 'другое';
+
+    if (!(km >= 0.01 && km <= 500)) {
+      errors.push({ line: idx + 1, reason: 'Дистанция вне 0.01–500 км' });
+      return;
+    }
+    if (!durationSec) {
+      errors.push({ line: idx + 1, reason: 'Некорректное время тренировки' });
+      return;
+    }
+    if (!(pulseAvg >= 30 && pulseAvg <= 250) || !(pulseMax >= pulseAvg && pulseMax <= 250)) {
+      errors.push({ line: idx + 1, reason: 'Некорректный пульс (30–250, макс >= ср)' });
+      return;
+    }
+
+    valid.push({
+      id: 'csv_' + Date.now().toString(36) + '_' + idx + '_' + Math.random().toString(36).slice(2, 6),
+      date: dateStr,
+      time: timeVal,
+      km: Math.round(km * 100) / 100,
+      durationSec,
+      pulseAvg,
+      pulseMax,
+      type,
+      notes: notesRest.join(', ')
+    });
+  });
+
+  return { valid, errors };
+}
+
+/* =========================================================================
+   11.5. ИНТЕГРАЦИЯ С ИИ DEEPSEEK: КЛЮЧ, РАСПОЗНАВАНИЕ РЕЧИ, РАЗБОР В ПОЛЯ
+   ========================================================================= */
+
+// ---------- Хранение ключа ----------
+function loadAIKey() {
+  try {
+    aiState.key = localStorage.getItem(AI_KEY_STORAGE) || '';
+    aiState.model = localStorage.getItem(AI_MODEL_STORAGE) || 'deepseek-chat';
+  } catch (e) {
+    aiState.key = '';
+    aiState.model = 'deepseek-chat';
+  }
+  refreshAIStatusIndicators();
+}
+
+function saveAIKey(key, model) {
+  aiState.key = key;
+  aiState.model = model || 'deepseek-chat';
+  try {
+    if (key) localStorage.setItem(AI_KEY_STORAGE, key);
+    else localStorage.removeItem(AI_KEY_STORAGE);
+    localStorage.setItem(AI_MODEL_STORAGE, aiState.model);
+  } catch (e) {}
+  refreshAIStatusIndicators();
+}
+
+function maskKey(key) {
+  if (!key) return 'не задан';
+  if (key.length <= 10) return key.slice(0, 3) + '…';
+  return key.slice(0, 6) + '…' + key.slice(-4);
+}
+
+function setStatus(elId, textId, mode, text) {
+  const box = $(elId);
+  if (!box) return;
+  box.className = 'ai-status' + (mode ? ' ' + mode : '');
+  const t = $(textId);
+  if (t) t.textContent = text;
+}
+
+// Обновляет все индикаторы состояния ИИ в интерфейсе
+function refreshAIStatusIndicators() {
+  const configured = Boolean(aiState.key);
+  const keyBtn = $('btn-ai-key');
+  if (keyBtn) {
+    keyBtn.textContent = configured ? '🔑 Ключ DeepSeek ✓' : '🔑 Ключ DeepSeek';
+    keyBtn.classList.toggle('configured', configured);
+  }
+
+  const formStatus = $('ai-form-status');
+  if (formStatus) {
+    if (configured) {
+      setStatus('ai-form-status', 'ai-form-status-text', 'ok',
+        `ИИ подключён (${aiState.model}, ключ ${maskKey(aiState.key)}). Введите фразу и нажмите «Разобрать».`);
+    } else {
+      setStatus('ai-form-status', 'ai-form-status-text', '',
+        'ИИ не настроен — добавьте ключ DeepSeek кнопкой в шапке.');
+    }
+  }
+
+  const keyStatus = $('ai-key-status');
+  if (keyStatus) {
+    if (configured) {
+      setStatus('ai-key-status', 'ai-key-status-text', 'ok',
+        `Ключ сохранён локально: ${maskKey(aiState.key)}. Модель: ${aiState.model}.`);
+    } else {
+      setStatus('ai-key-status', 'ai-key-status-text', '', 'Ключ не задан.');
+    }
+  }
+}
+
+// ---------- Вызов DeepSeek API ----------
+async function callDeepSeek(messages, options) {
+  if (!aiState.key) {
+    throw new Error('Не задан ключ DeepSeek. Нажмите «🔑 Ключ DeepSeek» в шапке.');
+  }
+  const opts = options || {};
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), opts.timeoutMs || 45000);
+
+  let resp;
+  try {
+    resp = await fetch(DEEPSEEK_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + aiState.key
+      },
+      body: JSON.stringify({
+        model: aiState.model || 'deepseek-chat',
+        messages,
+        temperature: opts.temperature !== undefined ? opts.temperature : 0.1,
+        max_tokens: opts.maxTokens || 700,
+        stream: false,
+        // deepseek-reasoner не поддерживает строгий JSON-режим — там полагаемся на извлечение JSON из текста
+        response_format: (opts.jsonMode === false || aiState.model === 'deepseek-reasoner')
+          ? undefined
+          : { type: 'json_object' }
+      }),
+      signal: controller.signal
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Превышено время ожидания ответа от DeepSeek.');
+    }
+    throw new Error('Сеть недоступна или запрос заблокирован: ' + err.message);
+  }
+  clearTimeout(timeoutId);
+
+  if (!resp.ok) {
+    let detail = '';
+    try {
+      const errJson = await resp.json();
+      detail = (errJson && errJson.error && errJson.error.message) || JSON.stringify(errJson).slice(0, 200);
+    } catch (e) {
+      detail = (await resp.text().catch(() => '')).slice(0, 200);
+    }
+    if (resp.status === 401) throw new Error('Ключ отклонён (401). Проверьте API-ключ DeepSeek.');
+    if (resp.status === 402) throw new Error('Недостаточно средств на балансе DeepSeek (402).');
+    if (resp.status === 429) throw new Error('Слишком много запросов (429). Попробуйте через минуту.');
+    if (resp.status >= 500) throw new Error('Сервис DeepSeek временно недоступен (' + resp.status + ').');
+    throw new Error('Ошибка API ' + resp.status + ': ' + detail);
+  }
+
+  const data = await resp.json();
+  const content = data && data.choices && data.choices[0] && data.choices[0].message
+    ? data.choices[0].message.content
+    : '';
+  if (!content) throw new Error('DeepSeek вернул пустой ответ.');
+  return content;
+}
+
+// Проверка ключа минимальным запросом
+async function testDeepSeekKey() {
+  setStatus('ai-key-status', 'ai-key-status-text', 'busy', 'Проверяю ключ запросом к DeepSeek…');
+  try {
+    const out = await callDeepSeek([
+      { role: 'system', content: 'Отвечай строго JSON без пояснений.' },
+      { role: 'user', content: 'Верни JSON вида {"ok": true}.' }
+    ], { maxTokens: 40, timeoutMs: 25000 });
+    JSON.parse(extractJsonBlock(out));
+    setStatus('ai-key-status', 'ai-key-status-text', 'ok', 'Ключ рабочий — DeepSeek ответил. Модель: ' + aiState.model + '.');
+    return true;
+  } catch (err) {
+    setStatus('ai-key-status', 'ai-key-status-text', 'err', err.message);
+    return false;
+  }
+}
+
+// Аккуратно вытаскиваем JSON из ответа модели
+function extractJsonBlock(text) {
+  let s = String(text || '').trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const first = s.indexOf('{');
+  const last = s.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    s = s.slice(first, last + 1);
+  }
+  return s;
+}
+
+/* =========================================================================
+   РАЗБОР ФРАЗЫ О ТРЕНИРОВКЕ В ПОЛЯ ФОРМЫ
+   ========================================================================= */
+const WORKOUT_TYPE_LIST_STR = WORKOUT_TYPES.join(', ');
+
+function buildParsePrompt(userText) {
+  const today = new Date();
+  const todayISO = toISO(today);
+  const dow = today.toLocaleDateString('ru-RU', { weekday: 'long' });
+
+  return [
+    {
+      role: 'system',
+      content:
+        'Ты — парсер данных о беговых тренировках. Пользователь диктует или пишет фразу о прошедшей тренировке,' +
+        ' а ты извлекаешь структурированные поля.' +
+        ' Отвечай ТОЛЬКО валидным JSON-объектом без markdown и пояснений.\n\n' +
+        'Схема ответа:\n' +
+        '{\n' +
+        '  "date": "YYYY-MM-DD или null",\n' +
+        '  "time": "HH:MM или null",\n' +
+        '  "km": число или null,\n' +
+        '  "duration": "ММ:СС или ЧЧ:ММ:СС или null",\n' +
+        '  "pulseAvg": целое число или null,\n' +
+        '  "pulseMax": целое число или null,\n' +
+        '  "type": "одно из: ' + WORKOUT_TYPE_LIST_STR + ', или null",\n' +
+        '  "notes": "строка с прочими деталями или null",\n' +
+        '  "confidence": число от 0 до 1,\n' +
+        '  "warnings": ["список замечаний, если данных не хватило"]\n' +
+        '}\n\n' +
+        'Правила:\n' +
+        '1. Относительные даты ("сегодня", "вчера", "позавчера", "в субботу") переводи в конкретную дату.\n' +
+        '2. Числа словами переводи в цифры: "десять километров" → 10, "полтора часа" → 01:30:00, ' +
+        '"час двадцать" → 01:20:00, "пять минут сорок секунд на километр" — это темп, а не длительность.\n' +
+        '3. Дистанция — всегда километры. Если названо "десять километров и двести метров" — верни 10.2.\n' +
+        '4. Если назван только темп и дистанция, длительность НЕ выдумывай — оставь null.\n' +
+        '5. "Пульс 150" при единственном числе — это средний пульс. "До 175" или "максимум 178" — максимальный.\n' +
+        '6. Тип определяй по смыслу: "легкий бег" → лёгкая, "интервалы" → интервалы, ' +
+        '"темповая" или "на темп" → темповая, "длинная" или "длительная" → длинная, ' +
+        '"восстановительный" → восстановительная, "фартлек" → фартлек, "забег" или "соревнование" → соревнование.\n' +
+        '7. Не придумывай отсутствующие данные — ставь null.\n' +
+        '8. В notes складывай то, что не попало в другие поля: погода, самочувствие, место, покрытие.'
+    },
+    {
+      role: 'user',
+      content:
+        'Сегодня ' + todayISO + ', день недели: ' + dow + '.\n' +
+        'Фраза о тренировке: «' + userText + '»\n' +
+        'Верни JSON по схеме.'
+    }
+  ];
+}
+
+// Нормализация результата модели к безопасному виду
+function normalizeParsedWorkout(raw) {
+  const out = {
+    date: null, time: null, km: null, duration: null,
+    pulseAvg: null, pulseMax: null, type: null, notes: null,
+    confidence: 0, warnings: []
+  };
+  if (!raw || typeof raw !== 'object') return out;
+
+  // Дата
+  if (typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date.trim())) {
+    const d = raw.date.trim();
+    if (!Number.isNaN(parseISO(d).getTime())) out.date = d;
+  } else if (typeof raw.date === 'string' && raw.date) {
+    const parsedDate = Date.parse(raw.date);
+    if (!Number.isNaN(parsedDate)) out.date = toISO(new Date(parsedDate));
+  }
+
+  // Время старта
+  if (typeof raw.time === 'string') {
+    const m = raw.time.match(/(\d{1,2})[:.\-](\d{2})/);
+    if (m) {
+      const hh = Number(m[1]);
+      const mm = Number(m[2]);
+      if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+        out.time = pad2(hh) + ':' + pad2(mm);
+      }
+    }
+  }
+
+  // Дистанция
+  const kmNum = Number(String(raw.km).replace(',', '.'));
+  if (Number.isFinite(kmNum) && kmNum >= 0.01 && kmNum <= 500) {
+    out.km = Math.round(kmNum * 100) / 100;
+  }
+
+  // Длительность
+  const durSec = parseDurationToSec(raw.duration);
+  if (durSec) out.duration = formatDurationSec(durSec);
+
+  // Пульс
+  const pa = Math.round(Number(raw.pulseAvg));
+  if (Number.isFinite(pa) && pa >= 30 && pa <= 250) out.pulseAvg = pa;
+  const pm = Math.round(Number(raw.pulseMax));
+  if (Number.isFinite(pm) && pm >= 30 && pm <= 250) out.pulseMax = pm;
+  if (out.pulseAvg && out.pulseMax && out.pulseMax < out.pulseAvg) {
+    const tmp = out.pulseAvg;
+    out.pulseAvg = out.pulseMax;
+    out.pulseMax = tmp;
+    out.warnings.push('Средний и максимальный пульс были перепутаны — значения поменял местами.');
+  }
+
+  // Тип
+  if (typeof raw.type === 'string') {
+    const t = raw.type.trim().toLowerCase();
+    if (WORKOUT_TYPES.includes(t)) out.type = t;
+    else {
+      const synonym = {
+        'легкая': 'лёгкая', 'лёгкий': 'лёгкая', 'восстановительный': 'восстановительная',
+        'интервальная': 'интервалы', 'темп': 'темповая', 'длительная': 'длинная',
+        'длинный': 'длинная', 'забег': 'соревнование', 'гонка': 'соревнование'
+      };
+      if (synonym[t]) out.type = synonym[t];
+    }
+  }
+
+  if (typeof raw.notes === 'string' && raw.notes.trim() && raw.notes.trim().toLowerCase() !== 'null') {
+    out.notes = raw.notes.trim();
+  }
+  if (Number.isFinite(Number(raw.confidence))) {
+    out.confidence = Math.max(0, Math.min(1, Number(raw.confidence)));
+  }
+  if (Array.isArray(raw.warnings)) {
+    out.warnings = raw.warnings.filter(w => typeof w === 'string' && w.trim()).slice(0, 5);
+  }
+  return out;
+}
+
+// Разбор произвольной фразы через DeepSeek (используется и в форме, и в модальном окне голоса)
+async function parseWorkoutWithAI(text) {
+  if (!aiState.key) {
+    throw new Error('Сначала добавьте ключ DeepSeek кнопкой «🔑 Ключ DeepSeek» в шапке.');
+  }
+  if (!text || !text.trim()) {
+    throw new Error('Пустой текст: продиктуйте тренировку или введите фразу.');
+  }
+  const content = await callDeepSeek(buildParsePrompt(text.trim()), { maxTokens: 700 });
+  let parsedRaw;
+  try {
+    parsedRaw = JSON.parse(extractJsonBlock(content));
+  } catch (e) {
+    throw new Error('Не удалось разобрать ответ модели как JSON. Попробуйте сформулировать фразу иначе.');
+  }
+  return normalizeParsedWorkout(parsedRaw);
+}
+
+/* =========================================================================
+   ПРИМЕНЕНИЕ РАЗОБРАННЫХ ПОЛЕЙ К ФОРМЕ ТРЕНИРОВКИ
+   ========================================================================= */
+const FIELD_LABELS = {
+  date: 'Дата',
+  time: 'Время старта',
+  km: 'Дистанция, км',
+  duration: 'Длительность',
+  pulseAvg: 'Средний пульс',
+  pulseMax: 'Максимальный пульс',
+  type: 'Тип',
+  notes: 'Заметки'
+};
+
+function fieldDisplayValue(key, parsed) {
+  const v = parsed[key];
+  if (v === null || v === undefined || v === '') return null;
+  if (key === 'date') return fmtDateFull(v);
+  if (key === 'km') return fmtNum(v, 2) + ' км';
+  if (key === 'pulseAvg' || key === 'pulseMax') return v + ' уд/мин';
+  if (key === 'time') return v;
+  return String(v);
+}
+
+// Рендер карты полей с галочками выбора
+function renderFieldMap(parsed) {
+  const wrap = $('voice-field-map');
+  const keys = Object.keys(FIELD_LABELS);
+  const items = keys.map(key => {
+    const shown = fieldDisplayValue(key, parsed);
+    const has = shown !== null;
+    return '<label class="field-map-item ' + (has ? 'filled' : '') + '" ' +
+      (has ? '' : 'style="opacity:.45;"') + '>' +
+      '<span style="display:flex;align-items:center;gap:7px;">' +
+      '<input type="checkbox" data-field-apply="' + key + '" ' + (has ? 'checked' : 'disabled') +
+      ' style="width:auto;margin:0;">' +
+      '<span class="k">' + FIELD_LABELS[key] + '</span></span>' +
+      '<span class="v">' + (has ? shown : '—') + '</span>' +
+      '</label>';
+  }).join('');
+
+  const warnHtml = (parsed.warnings && parsed.warnings.length)
+    ? '<div style="grid-column:1 / -1;font-size:11px;color:var(--amber);">' +
+      parsed.warnings.map(w => '⚠ ' + w).join('<br>') + '</div>'
+    : '';
+
+  wrap.innerHTML = items + warnHtml;
+}
+
+// Применение выбранных полей к форме тренировки
+function applyParsedToForm(parsed, onlyKeys) {
+  if (!parsed) return 0;
+  let applied = 0;
+  const keys = onlyKeys || Object.keys(FIELD_LABELS);
+
+  if (keys.includes('date') && parsed.date) { $('f-date').value = parsed.date; applied++; }
+  if (keys.includes('time') && parsed.time) { $('f-time').value = parsed.time; applied++; }
+  if (keys.includes('km') && parsed.km !== null) { $('f-km').value = parsed.km; applied++; }
+  if (keys.includes('duration') && parsed.duration) { $('f-duration').value = parsed.duration; applied++; }
+  if (keys.includes('pulseAvg') && parsed.pulseAvg !== null) { $('f-pulse-avg').value = parsed.pulseAvg; applied++; }
+  if (keys.includes('pulseMax') && parsed.pulseMax !== null) { $('f-pulse-max').value = parsed.pulseMax; applied++; }
+  if (keys.includes('type') && parsed.type) { $('f-type').value = parsed.type; applied++; }
+  if (keys.includes('notes') && parsed.notes) {
+    const cur = $('f-notes').value.trim();
+    $('f-notes').value = cur ? (cur + '; ' + parsed.notes) : parsed.notes;
+    applied++;
+  }
+
+  // Если назван только средний пульс, аккуратно подсказываем максимальный (помечаем в подсказке)
+  if (parsed.pulseAvg !== null && parsed.pulseMax === null && !$('f-pulse-max').value) {
+    $('f-pulse-max').value = Math.min(250, parsed.pulseAvg + 15);
+    applied++;
+  }
+
+  updateFormPreview();
+  return applied;
+}
+
+/* =========================================================================
+   РАСПОЗНАВАНИЕ РЕЧИ (WEB SPEECH API)
+   ========================================================================= */
+let speechRecognition = null;
+let isRecording = false;
+let transcriptFinal = '';
+
+function isSpeechSupported() {
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function setRecordButtonState(recording) {
+  isRecording = recording;
+  const btn = $('btn-voice-record');
+  if (!btn) return;
+  btn.classList.toggle('recording', recording);
+  btn.textContent = recording ? '⏹ Остановить запись' : '🎙 Начать запись';
+}
+
+function appendTranscript(text) {
+  const box = $('voice-transcript');
+  if (!box) return;
+  box.classList.remove('empty');
+  box.textContent = text;
+}
+
+function initSpeechRecognition() {
+  if (speechRecognition) return speechRecognition;
+  if (!isSpeechSupported()) return null;
+
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new SpeechRec();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = state.settings.voiceLang || 'ru-RU';
+
+  rec.onstart = () => {
+    setRecordButtonState(true);
+    setStatus('ai-voice-status', 'ai-voice-status-text', 'busy',
+      'Слушаю… Говорите о тренировке. Нажмите «Остановить запись», когда закончите.');
+  };
+
+  rec.onresult = event => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i];
+      if (res.isFinal) {
+        transcriptFinal += res[0].transcript + ' ';
+      } else {
+        interim += res[0].transcript;
+      }
+    }
+    appendTranscript((transcriptFinal + interim).trim());
+  };
+
+  rec.onerror = event => {
+    const map = {
+      'not-allowed': 'Доступ к микрофону запрещён. Разрешите его в настройках браузера.',
+      'no-speech': 'Речь не распознана. Попробуйте снова ближе к микрофону.',
+      'audio-capture': 'Микрофон не найден. Проверьте подключение устройства.',
+      'network': 'Распознавание речи требует интернет-соединения.',
+      'aborted': 'Запись остановлена.'
+    };
+    setStatus('ai-voice-status', 'ai-voice-status-text', 'err',
+      map[event.error] || ('Ошибка распознавания: ' + event.error));
+    setRecordButtonState(false);
+  };
+
+  rec.onend = () => {
+    setRecordButtonState(false);
+    if (transcriptFinal.trim()) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'ok',
+        'Запись завершена. Проверьте текст и нажмите «Разобрать через ИИ».');
+    }
+  };
+
+  speechRecognition = rec;
+  return rec;
+}
+
+function toggleVoiceRecording() {
+  if (!isSpeechSupported()) {
+    setStatus('ai-voice-status', 'ai-voice-status-text', 'err',
+      'Браузер не поддерживает Web Speech API. Используйте Chrome или Edge либо введите текст вручную.');
+    return;
+  }
+  const rec = initSpeechRecognition();
+  if (!rec) return;
+
+  if (isRecording) {
+    rec.stop();
+    setRecordButtonState(false);
+    return;
+  }
+
+  // Очищаем поле, если там ещё плейсхолдер
+  const box = $('voice-transcript');
+  if (box && box.classList.contains('empty')) {
+    box.textContent = '';
+  }
+  transcriptFinal = box ? box.textContent.trim() : '';
+  if (transcriptFinal) transcriptFinal += ' ';
+
+  rec.lang = state.settings.voiceLang || 'ru-RU';
+  try {
+    rec.start();
+  } catch (e) {
+    setStatus('ai-voice-status', 'ai-voice-status-text', 'err', 'Не удалось запустить запись: ' + e.message);
+  }
+}
+
+/* =========================================================================
+   12. ОБЩАЯ ФУНКЦИЯ РЕНДЕРИНГА И ИНИЦИАЛИЗАЦИЯ СОБЫТИЙ
+   ========================================================================= */
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.settings.theme || 'dark');
+}
+
+function renderFilterTypePills() {
+  $('filter-types').innerHTML = WORKOUT_TYPES.map(t => {
+    const isAct = state.filters.types.has(t);
+    return `<span class="type-pill ${isAct ? 'active' : ''}" data-type-pill="${t}">${t}</span>`;
+  }).join('');
+}
+
+function renderAll() {
+  $('today-badge').textContent = fmtDateFull(toISO(new Date()));
+  renderFilterTypePills();
+  renderDrillBreadcrumbs();
+  renderKPIs();
+  renderPlanVsFactComparison();
+  renderMonthLineChart();
+  renderWeekBarChart();
+  renderPacePulseChart();
+  renderZonesPieChart();
+  populateHeatmapYearSelect();
+  renderYearHeatmap();
+  renderWorkoutsTable();
+}
+
+/* =========================================================================
+   ПРИВЯЗКА СОБЫТИЙ ИИ-ПОДСИСТЕМЫ
+   ========================================================================= */
+function bindAIEvents() {
+  // --- Модальное окно ключа ---
+  $('btn-ai-key').addEventListener('click', () => {
+    $('ai-key-input').value = aiState.key || '';
+    $('ai-key-input').type = 'password';
+    $('ai-model-select').value = aiState.model || 'deepseek-chat';
+    refreshAIStatusIndicators();
+    openModal('modal-ai-key');
+    setTimeout(() => $('ai-key-input').focus(), 60);
+  });
+
+  $('btn-ai-key-toggle').addEventListener('click', () => {
+    const inp = $('ai-key-input');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    $('btn-ai-key-toggle').textContent = inp.type === 'password' ? '👁' : '🙈';
+  });
+
+  $('btn-ai-key-save').addEventListener('click', () => {
+    const key = $('ai-key-input').value.trim();
+    const model = $('ai-model-select').value;
+    if (!key) {
+      setStatus('ai-key-status', 'ai-key-status-text', 'err', 'Введите ключ или нажмите «Удалить ключ».');
+      return;
+    }
+    if (!/^sk-[A-Za-z0-9_\-]{10,}$/.test(key)) {
+      setStatus('ai-key-status', 'ai-key-status-text', 'err',
+        'Ключ DeepSeek обычно начинается с «sk-» и длиннее 10 символов. Проверьте значение.');
+      return;
+    }
+    saveAIKey(key, model);
+    setStatus('ai-key-status', 'ai-key-status-text', 'ok', 'Ключ сохранён в этом браузере.');
+    setTimeout(() => closeModal('modal-ai-key'), 700);
+  });
+
+  $('btn-ai-key-clear').addEventListener('click', () => {
+    if (!confirm('Удалить сохранённый ключ DeepSeek из этого браузера?')) return;
+    saveAIKey('', aiState.model);
+    $('ai-key-input').value = '';
+    setStatus('ai-key-status', 'ai-key-status-text', '', 'Ключ удалён.');
+  });
+
+  $('btn-ai-key-test').addEventListener('click', async () => {
+    const typed = $('ai-key-input').value.trim();
+    if (typed) saveAIKey(typed, $('ai-model-select').value);
+    await testDeepSeekKey();
+  });
+
+  // --- Модальное окно голосового ввода ---
+  $('btn-ai-voice').addEventListener('click', () => {
+    if (!isSpeechSupported()) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'err',
+        'Браузер не поддерживает распознавание речи. Введите текст вручную в поле ниже — ИИ разберёт его так же.');
+    } else if (!aiState.key) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'busy',
+        'Микрофон доступен, но для разбора фразы нужен ключ DeepSeek (кнопка «🔑 Ключ DeepSeek»).');
+    } else {
+      setStatus('ai-voice-status', 'ai-voice-status-text', '', 'Готово к записи.');
+    }
+    $('voice-lang-select').value = state.settings.voiceLang || 'ru-RU';
+    openModal('modal-ai-voice');
+  });
+
+  $('voice-lang-select').addEventListener('change', e => {
+    state.settings.voiceLang = e.target.value;
+    saveAllState();
+    if (speechRecognition) speechRecognition.lang = e.target.value;
+  });
+
+  $('btn-voice-record').addEventListener('click', toggleVoiceRecording);
+
+  $('btn-voice-clear').addEventListener('click', () => {
+    transcriptFinal = '';
+    const box = $('voice-transcript');
+    box.textContent = 'Здесь появится распознанная речь. Можно ввести текст вручную, если микрофон недоступен.';
+    box.classList.add('empty');
+    aiState.parsedFields = null;
+    $('voice-field-map').innerHTML = '<div class="empty-state" style="grid-column:1 / -1;padding:14px;">Пока ничего не разобрано.</div>';
+    $('btn-voice-apply').disabled = true;
+    setStatus('ai-voice-status', 'ai-voice-status-text', '', 'Очищено.');
+  });
+
+  $('btn-voice-parse').addEventListener('click', async () => {
+    const box = $('voice-transcript');
+    const text = box.classList.contains('empty') ? '' : box.textContent.trim();
+    if (!text) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'err',
+        'Сначала запишите или введите фразу о тренировке.');
+      return;
+    }
+    if (isRecording) { speechRecognition.stop(); setRecordButtonState(false); }
+
+    setStatus('ai-voice-status', 'ai-voice-status-text', 'busy', 'DeepSeek разбирает фразу…');
+    $('btn-voice-parse').disabled = true;
+    try {
+      const parsed = await parseWorkoutWithAI(text);
+      aiState.parsedFields = parsed;
+      renderFieldMap(parsed);
+      $('btn-voice-apply').disabled = false;
+      const filledCount = Object.keys(FIELD_LABELS).filter(k => fieldDisplayValue(k, parsed) !== null).length;
+      setStatus('ai-voice-status', 'ai-voice-status-text',
+        filledCount >= 3 ? 'ok' : 'busy',
+        'Распознано полей: ' + filledCount + ' из 8. Проверьте значения и нажмите «Заполнить форму».');
+    } catch (err) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'err', err.message);
+    } finally {
+      $('btn-voice-parse').disabled = false;
+    }
+  });
+
+  $('btn-voice-apply').addEventListener('click', () => {
+    if (!aiState.parsedFields) return;
+    const checked = Array.from(document.querySelectorAll('[data-field-apply]:checked'))
+      .map(cb => cb.dataset.fieldApply);
+    if (checked.length === 0) {
+      setStatus('ai-voice-status', 'ai-voice-status-text', 'err', 'Не выбрано ни одного поля для переноса.');
+      return;
+    }
+    const applied = applyParsedToForm(aiState.parsedFields, checked);
+    closeModal('modal-ai-voice');
+    const msg = $('form-msg');
+    msg.className = 'form-msg ok';
+    msg.textContent = 'ИИ заполнил полей: ' + applied + '. Проверьте данные и нажмите «Сохранить тренировку».';
+    window.scrollTo({ top: 180, behavior: 'smooth' });
+  });
+
+  // --- Быстрый разбор прямо в форме ---
+  $('btn-inline-parse').addEventListener('click', async () => {
+    const text = $('f-voice-text').value.trim();
+    if (!aiState.key) {
+      setStatus('ai-form-status', 'ai-form-status-text', 'err',
+        'Нужен ключ DeepSeek — нажмите «🔑 Ключ DeepSeek» в шапке.');
+      return;
+    }
+    if (!text) {
+      setStatus('ai-form-status', 'ai-form-status-text', 'err', 'Введите фразу о тренировке в поле выше.');
+      return;
+    }
+    setStatus('ai-form-status', 'ai-form-status-text', 'busy', 'DeepSeek разбирает фразу…');
+    $('btn-inline-parse').disabled = true;
+    try {
+      const parsed = await parseWorkoutWithAI(text);
+      const applied = applyParsedToForm(parsed);
+      const missing = Object.keys(FIELD_LABELS).filter(k => fieldDisplayValue(k, parsed) === null);
+      setStatus('ai-form-status', 'ai-form-status-text', applied > 0 ? 'ok' : 'busy',
+        applied > 0
+          ? 'Заполнено полей: ' + applied + (missing.length ? '. Не распознано: ' + missing.map(k => FIELD_LABELS[k]).join(', ') : '.')
+          : 'Не удалось выделить данные — уточните фразу.');
+    } catch (err) {
+      setStatus('ai-form-status', 'ai-form-status-text', 'err', err.message);
+    } finally {
+      $('btn-inline-parse').disabled = false;
+    }
+  });
+
+  // Enter в поле быстрого разбора запускает разбор
+  $('f-voice-text').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $('btn-inline-parse').click();
+    }
+  });
+}
+
+function bindEvents() {
+  // Живой предпросмотр темпа и скорости в форме
+  ['f-km', 'f-duration'].forEach(id => {
+    $(id).addEventListener('input', updateFormPreview);
+  });
+
+  // Отправка формы тренировки с валидацией
+  $('workout-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const msg = $('form-msg');
+    msg.className = 'form-msg';
+
+    const editId = $('f-id').value;
+    const date = $('f-date').value;
+    const time = $('f-time').value;
+    const km = parseFloat($('f-km').value);
+    const durationSec = parseDurationToSec($('f-duration').value);
+    const pulseAvg = parseInt($('f-pulse-avg').value, 10);
+    const pulseMax = parseInt($('f-pulse-max').value, 10);
+    const type = $('f-type').value;
+    const notes = $('f-notes').value.trim();
+
+    if (!date || !time) { msg.textContent = 'Укажите дату и время начала тренировки.'; return; }
+    if (!(km >= 0.01 && km <= 500)) { msg.textContent = 'Дистанция должна быть от 0.01 до 500 км.'; return; }
+    if (!durationSec) { msg.textContent = 'Введите время в формате ММ:СС или ЧЧ:ММ:СС (например, 42:15).'; return; }
+    if (!(pulseAvg >= 30 && pulseAvg <= 250)) { msg.textContent = 'Средний пульс должен быть в диапазоне 30–250 уд/мин.'; return; }
+    if (!(pulseMax >= 30 && pulseMax <= 250) || pulseMax < pulseAvg) {
+      msg.textContent = 'Максимальный пульс должен быть от 30 до 250 и не меньше среднего пульса.';
+      return;
+    }
+
+    const record = {
+      id: editId || ('run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)),
+      date,
+      time,
+      km: Math.round(km * 100) / 100,
+      durationSec,
+      pulseAvg,
+      pulseMax,
+      type,
+      notes
+    };
+
+    if (editId) {
+      const idx = state.runs.findIndex(r => r.id === editId);
+      if (idx !== -1) state.runs[idx] = record;
+    } else {
+      state.runs.push(record);
+    }
+
+    saveAllState();
+    resetWorkoutForm();
+    msg.className = 'form-msg ok';
+    msg.textContent = editId ? 'Тренировка успешно обновлена!' : 'Тренировка добавлена!';
+    renderAll();
+  });
+
+  $('btn-cancel-edit').addEventListener('click', resetWorkoutForm);
+
+  // Дни отдыха в недельном плане
+  $('plan-rest-days').addEventListener('click', e => {
+    const box = e.target.closest('.day-box');
+    if (!box) return;
+    box.classList.toggle('rest');
+    updatePlanDailyCalcLabel();
+  });
+  $('plan-week-km').addEventListener('input', updatePlanDailyCalcLabel);
+  $('plan-week-scope').addEventListener('change', syncPlanControlsFromState);
+
+  $('btn-save-week-plan').addEventListener('click', () => {
+    const wKm = Math.max(0, Math.min(500, parseFloat($('plan-week-km').value) || 0));
+    const restDays = getSelectedRestDaysFromDOM();
+    if (restDays.length >= 7) {
+      alert('Оставьте хотя бы один тренировочный день в неделе.');
+      return;
+    }
+    const scope = $('plan-week-scope').value;
+    if (scope === 'current') {
+      state.plans.byWeek[state.weekCursorMonday] = { weeklyKm: wKm, restDays };
+    } else {
+      state.plans.defaultWeek = { weeklyKm: wKm, restDays };
+    }
+    saveAllState();
+    renderAll();
+  });
+
+  // Цель на месяц (50, 75, 100 или своё)
+  $('goal-presets').addEventListener('click', e => {
+    const btn = e.target.closest('.goal-preset');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    document.querySelectorAll('.goal-preset').forEach(b => b.classList.remove('btn-active'));
+    btn.classList.add('btn-active');
+    if (val !== 'custom') {
+      $('goal-month-input').value = val;
+    } else {
+      $('goal-month-input').focus();
+    }
+  });
+
+  $('btn-save-month-goal').addEventListener('click', () => {
+    const val = Math.max(1, Math.min(1000, parseFloat($('goal-month-input').value) || 75));
+    $('goal-month-input').value = val;
+    const scope = $('goal-month-scope').value;
+    const ym = toISO(new Date()).slice(0, 7);
+    if (scope === 'current') {
+      state.goals.byMonth[ym] = val;
+    } else {
+      state.goals.defaultGoal = val;
+    }
+    saveAllState();
+    syncPlanControlsFromState();
+    renderAll();
+  });
+
+  $('compare-mode').addEventListener('change', renderPlanVsFactComparison);
+
+  // Фильтры
+  $('filter-period').addEventListener('change', e => {
+    state.filters.period = e.target.value;
+    $('custom-dates-wrap').style.display = state.filters.period === 'custom' ? 'inline-flex' : 'none';
+    renderAll();
+  });
+  $('filter-from').addEventListener('change', e => { state.filters.from = e.target.value; renderAll(); });
+  $('filter-to').addEventListener('change', e => { state.filters.to = e.target.value; renderAll(); });
+
+  $('filter-types').addEventListener('click', e => {
+    const pill = e.target.closest('[data-type-pill]');
+    if (!pill) return;
+    const t = pill.dataset.typePill;
+    if (state.filters.types.has(t)) {
+      if (state.filters.types.size > 1) state.filters.types.delete(t);
+    } else {
+      state.filters.types.add(t);
+    }
+    renderAll();
+  });
+
+  $('filter-metric').addEventListener('change', e => {
+    state.filters.metric = e.target.value;
+    renderMonthLineChart();
+  });
+
+  $('filter-ma').addEventListener('change', e => {
+    state.settings.maWindow = Number(e.target.value) || 7;
+    saveAllState();
+    renderMonthLineChart();
+    renderPacePulseChart();
+  });
+
+  $('btn-reset-filters').addEventListener('click', () => {
+    state.filters.period = 'cur_month';
+    state.filters.types = new Set(WORKOUT_TYPES);
+    state.filters.metric = 'km';
+    state.filters.search = '';
+    $('filter-period').value = 'cur_month';
+    $('custom-dates-wrap').style.display = 'none';
+    $('filter-metric').value = 'km';
+    $('table-search').value = '';
+    renderAll();
+  });
+
+  // Переключатели графиков и недели
+  $('month-chart-group').addEventListener('change', renderMonthLineChart);
+  $('pace-chart-axis').addEventListener('change', renderPacePulseChart);
+  $('zones-metric-mode').addEventListener('change', renderZonesPieChart);
+
+  $('btn-prev-week').addEventListener('click', () => {
+    state.weekCursorMonday = addDaysISO(state.weekCursorMonday, -7);
+    syncPlanControlsFromState();
+    renderWeekBarChart();
+    renderPlanVsFactComparison();
+  });
+  $('btn-cur-week').addEventListener('click', () => {
+    state.weekCursorMonday = getMondayISO(toISO(new Date()));
+    syncPlanControlsFromState();
+    renderWeekBarChart();
+    renderPlanVsFactComparison();
+  });
+  $('btn-next-week').addEventListener('click', () => {
+    state.weekCursorMonday = addDaysISO(state.weekCursorMonday, 7);
+    syncPlanControlsFromState();
+    renderWeekBarChart();
+    renderPlanVsFactComparison();
+  });
+
+  // Хлебные крошки дрилдауна
+  $('drill-breadcrumbs').addEventListener('click', e => {
+    const c = e.target.closest('[data-crumb-level]');
+    if (!c) return;
+    const lvl = c.dataset.crumbLevel;
+    if (lvl === 'year') drillToYear(state.drill.year);
+    else if (lvl === 'month' && state.drill.month) drillToMonth(state.drill.month);
+    else if (lvl === 'week' && state.drill.weekMonday) drillToWeek(state.drill.weekMonday);
+    else if (lvl === 'day' && state.drill.day) drillToDay(state.drill.day);
+  });
+
+  $('btn-drill-reset').addEventListener('click', () => {
+    drillToYear(new Date().getFullYear());
+  });
+
+  $('btn-close-drill-panel').addEventListener('click', () => {
+    $('drill-panel-card').style.display = 'none';
+  });
+
+  // Клики внутри панели дрилдауна и таблиц
+  document.body.addEventListener('click', e => {
+    const mRow = e.target.closest('[data-drill-month]');
+    if (mRow) { drillToMonth(mRow.dataset.drillMonth); return; }
+
+    const wRow = e.target.closest('[data-drill-week]');
+    if (wRow) { drillToWeek(wRow.dataset.drillWeek); return; }
+
+    const dRow = e.target.closest('[data-drill-day]');
+    if (dRow) { drillToDay(dRow.dataset.drillDay); return; }
+
+    const heatCell = e.target.closest('[data-heat-day]');
+    if (heatCell) { drillToDay(heatCell.dataset.heatDay); return; }
+
+    const openW = e.target.closest('[data-open-workout]');
+    if (openW) { openWorkoutModal(openW.dataset.openWorkout); return; }
+
+    const rowW = e.target.closest('[data-row-workout]');
+    if (rowW) { openWorkoutModal(rowW.dataset.rowWorkout); return; }
+
+    const editBtn = e.target.closest('[data-edit-id]');
+    if (editBtn) { startEditWorkout(editBtn.dataset.editId); return; }
+
+    const delBtn = e.target.closest('[data-del-id]');
+    if (delBtn) { deleteWorkout(delBtn.dataset.delId); return; }
+
+    const closeBtn = e.target.closest('[data-close-modal]');
+    if (closeBtn) { closeModal(closeBtn.dataset.closeModal); return; }
+  });
+
+  // Клик по KPI-карточке открывает список тренировок за соответствующий период
+  $('kpi-grid').addEventListener('click', e => {
+    const card = e.target.closest('.kpi-card');
+    if (!card) return;
+    const kpiType = card.dataset.kpi;
+    const todayISO = toISO(new Date());
+    const ym = todayISO.slice(0, 7);
+    const typeRuns = getRunsByTypeOnly();
+
+    if (kpiType === '7d') {
+      const s7 = addDaysISO(todayISO, -6);
+      showDrillListPanel(`Тренировки за последние 7 дней (${fmtDateShort(s7)} — ${fmtDateShort(todayISO)})`,
+        typeRuns.filter(r => r.date >= s7 && r.date <= todayISO));
+    } else if (kpiType === 'month') {
+      showDrillListPanel(`Тренировки за текущий месяц (${ym})`,
+        typeRuns.filter(r => r.date.startsWith(ym)));
+    } else if (kpiType === 'longest') {
+      const sorted = [...getFilteredRuns()].sort((a, b) => b.km - a.km).slice(0, 10);
+      showDrillListPanel('Топ-10 самых длинных пробежек за период', sorted);
+    } else {
+      showDrillListPanel('Все тренировки за выбранный период фильтров', getFilteredRuns());
+    }
+  });
+
+  // Смена года тепловой карты
+  $('heatmap-year').addEventListener('change', e => {
+    state.drill.year = Number(e.target.value);
+    renderYearHeatmap();
+    renderDrillBreadcrumbs();
+  });
+
+  // Поиск и сортировка таблицы тренировок
+  $('table-search').addEventListener('input', e => {
+    state.filters.search = e.target.value;
+    renderWorkoutsTable();
+  });
+
+  document.querySelectorAll('#runs-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const f = th.dataset.sort;
+      if (state.filters.sortField === f) {
+        state.filters.sortAsc = !state.filters.sortAsc;
+      } else {
+        state.filters.sortField = f;
+        state.filters.sortAsc = false;
+      }
+      renderWorkoutsTable();
+    });
+  });
+
+  // Переключатель темы и анимации бегуна
+  $('btn-theme').addEventListener('click', () => {
+    state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+    saveAllState();
+    applyTheme();
+    renderAll();
+  });
+
+  $('toggle-anim').addEventListener('change', e => {
+    state.settings.animEnabled = e.target.checked;
+    saveAllState();
+    updateRunnerPositionAndStatus();
+  });
+
+  // Загрузка демо-данных (~60 тренировок за 3 месяца)
+  $('btn-demo').addEventListener('click', () => {
+    if (state.runs.length > 0 && !confirm('Заменить текущие тренировки демонстрационным набором (~60 пробежек за 3 месяца)?')) {
+      return;
+    }
+    state.runs = generateDemoWorkouts();
+    saveAllState();
+    renderAll();
+  });
+
+  // Экспорт и импорт JSON
+  $('btn-export-json').addEventListener('click', () => {
+    const payload = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      runs: state.runs,
+      plans: state.plans,
+      goals: state.goals,
+      settings: state.settings
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `running-dashboard-backup-${toISO(new Date())}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  $('btn-import-json').addEventListener('click', () => $('file-import-json').click());
+  $('file-import-json').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const runsArr = Array.isArray(data) ? data : data.runs;
+        if (!Array.isArray(runsArr)) throw new Error('Поле runs не найдено или не массив');
+        const validRuns = runsArr.filter(r => r && r.date && r.km > 0 && r.durationSec > 0 && r.pulseAvg >= 30);
+        state.runs = validRuns;
+        if (data.plans && data.plans.defaultWeek) state.plans = data.plans;
+        if (data.goals && data.goals.defaultGoal) state.goals = data.goals;
+        if (data.settings) state.settings = Object.assign({}, state.settings, data.settings);
+        saveAllState();
+        applyTheme();
+        syncPlanControlsFromState();
+        renderAll();
+        alert(`Успешно импортировано тренировок: ${validRuns.length}`);
+      } catch (err) {
+        alert('Ошибка структуры JSON: ' + err.message);
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // Импорт CSV с предпросмотром
+  $('btn-open-csv').addEventListener('click', () => openModal('modal-csv'));
+  $('btn-csv-sample').addEventListener('click', () => {
+    const today = toISO(new Date());
+    const d1 = addDaysISO(today, -2);
+    const d2 = addDaysISO(today, -1);
+    $('csv-textarea').value = [
+      'дата,время,км,время_сек,пульс_ср,пульс_макс,тип,заметки',
+      `${d1},07:15,8.4,2520,146,165,лёгкая,Утренний кросс`,
+      `${d2},18:30,10.0,2780,158,178,темповая,Стадион 10 км`,
+      `неверная_дата,08:00,-5,100,10,500,ошибка,Эта строка будет пропущена`
+    ].join('\n');
+  });
+
+  $('csv-file-input').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { $('csv-textarea').value = reader.result; };
+    reader.readAsText(f);
+  });
+
+  $('btn-csv-preview').addEventListener('click', () => {
+    const res = parseCSVContent($('csv-textarea').value);
+    state.csvParsedRows = res.valid;
+    $('csv-preview-stat').textContent = `Валидных строк: ${res.valid.length}, пропущено с ошибками: ${res.errors.length}`;
+    $('btn-csv-commit').disabled = res.valid.length === 0;
+
+    const previewRows = res.valid.slice(0, 15).map(r => `
+      <tr>
+        <td>${r.date}</td><td>${r.time}</td><td>${r.km} км</td>
+        <td>${formatDurationSec(r.durationSec)}</td><td>${r.pulseAvg}/${r.pulseMax}</td><td>${r.type}</td>
+      </tr>
+    `).join('');
+    const errHtml = res.errors.length
+      ? `<div style="color:var(--amber);font-size:11px;margin-top:6px;">Пропущены строки: ${res.errors.map(x => '#' + x.line + ' (' + x.reason + ')').join('; ')}</div>`
+      : '';
+    $('csv-preview-wrap').innerHTML = `
+      <table>
+        <thead><tr><th>Дата</th><th>Время</th><th>Км</th><th>Длит.</th><th>ЧСС</th><th>Тип</th></tr></thead>
+        <tbody>${previewRows || '<tr><td colspan="6">Нет валидных строк</td></tr>'}</tbody>
+      </table>
+      ${errHtml}
+    `;
+  });
+
+  $('btn-csv-commit').addEventListener('click', () => {
+    if (!state.csvParsedRows.length) return;
+    state.runs.push(...state.csvParsedRows);
+    state.csvParsedRows = [];
+    saveAllState();
+    closeModal('modal-csv');
+    renderAll();
+  });
+
+  // Модальное окно пульсовых зон
+  $('btn-zones-cfg').addEventListener('click', () => {
+    const z = state.settings.zones;
+    $('cfg-hr-max').value = z.hrMax || 190;
+    $('cfg-z1').value = z.thresholds[0] || 60;
+    $('cfg-z2').value = z.thresholds[1] || 70;
+    $('cfg-z3').value = z.thresholds[2] || 80;
+    $('cfg-z4').value = z.thresholds[3] || 90;
+    openModal('modal-zones');
+  });
+
+  $('btn-save-zones').addEventListener('click', () => {
+    const hrMax = Math.max(120, Math.min(240, parseInt($('cfg-hr-max').value, 10) || 190));
+    const t1 = parseInt($('cfg-z1').value, 10) || 60;
+    const t2 = parseInt($('cfg-z2').value, 10) || 70;
+    const t3 = parseInt($('cfg-z3').value, 10) || 80;
+    const t4 = parseInt($('cfg-z4').value, 10) || 90;
+    if (!(t1 < t2 && t2 < t3 && t3 < t4 && t4 < 100)) {
+      alert('Границы зон должны возрастать: Z1 < Z2 < Z3 < Z4 < 100%.');
+      return;
+    }
+    state.settings.zones = { hrMax, thresholds: [t1, t2, t3, t4] };
+    saveAllState();
+    closeModal('modal-zones');
+    renderAll();
+  });
+
+  // Закрытие модальных окон по клику на фон и по клавише Esc
+  document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', e => {
+      if (e.target === bd) bd.classList.remove('open');
+    });
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop.open').forEach(bd => bd.classList.remove('open'));
+    }
+  });
+}
+
+// Инициализация при загрузке страницы
+(function initApp() {
+  loadStateFromStorage();
+  // Если хранилище пустое при первом открытии — загружаем демо-набор (~60 тренировок), чтобы все графики были наглядными сразу
+  if (state.runs.length === 0) {
+    state.runs = generateDemoWorkouts();
+    saveAllState();
+  }
+  applyTheme();
+  $('toggle-anim').checked = state.settings.animEnabled !== false;
+  $('filter-ma').value = String(state.settings.maWindow || 7);
+  resetWorkoutForm();
+  syncPlanControlsFromState();
+  loadAIKey();
+  bindEvents();
+  bindAIEvents();
+  renderAll();
+  startRunnerAnimationLoop();
+})();
+</script>
+</body>
+</html>

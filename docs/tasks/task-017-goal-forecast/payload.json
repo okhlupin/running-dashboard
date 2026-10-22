@@ -1,0 +1,292 @@
+{
+  "task": "task-017-goal-forecast",
+  "title": "Прогноз даты достижения цели по текущему темпу",
+  "version": 1,
+  "target": {
+    "file": "running-dashboard 3.html",
+    "addFunctionTo": "раздел 2. ЧИСТЫЕ ФУНКЦИИ РАСЧЁТОВ (после calcGoalForMonth, ~строка 1440)",
+    "renderFunction": "renderGoalForecast()",
+    "renderHook": "renderAll() (строка 3534)",
+    "cardPlacement": "левая колонка, сразу после карточки «🎯 Недельный план и Цель месяца» (после строки 880)",
+    "headerHook": "updateRunnerPositionAndStatus() — строка runner-status-text (~строка 1767)",
+    "storage": {
+      "bucket": "STORAGE_KEYS.settings",
+      "localStorageKey": "run_pro_settings_v2",
+      "statePath": "state.settings.forecastGoals / state.settings.forecastWindowDays"
+    }
+  },
+  "settings": {
+    "forecastGoals": {
+      "quarter": 300,
+      "year": 1000
+    },
+    "forecastWindowDays": 28,
+    "allowedWindowDays": [7, 28, 56, 90],
+    "defaultWindowDays": 28,
+    "forecastPeriods": [
+      {
+        "id": "cur_month",
+        "label": "Месяц",
+        "goalSource": "calcGoalForMonth(ym, state.goals)",
+        "note": "цель месяца с учётом byMonth и defaultGoal — новую логику хранения не заводить"
+      },
+      {
+        "id": "quarter",
+        "label": "Квартал",
+        "goalSource": "state.settings.forecastGoals.quarter",
+        "defaultGoalKm": 300
+      },
+      {
+        "id": "year",
+        "label": "Год",
+        "goalSource": "state.settings.forecastGoals.year",
+        "defaultGoalKm": 1000
+      }
+    ]
+  },
+  "calculation": {
+    "pace": "paceKmPerWeek = sumKmInWindow / (windowDays / 7), окно календарное, тренеры — через getRunsByTypeOnly()",
+    "fact": "sumKm за выбранный период И с учётом фильтра типов",
+    "remainingKm": "max(0, goalKm - actualKm)",
+    "daysLeft": "количество календарных дней от today до target включительно",
+    "requiredKmPerWeek": "remainingKm / (daysLeft / 7)",
+    "paceDeltaKmPerWeek": "paceKmPerWeek - requiredKmPerWeek",
+    "daysNeeded": "ceil(remainingKm / paceKmPerWeek * 7), при pace > 0",
+    "forecastDateISO": "addDaysISO(today, daysNeeded - 1) — сегодня считается 1-м днём",
+    "daysEarly": "max(0, daysLeft - daysNeeded)",
+    "daysLate": "max(0, daysNeeded - daysLeft)",
+    "statusRules": {
+      "achieved": "actualKm >= goalKm",
+      "no-data": "paceKmPerWeek <= 0 и remainingKm > 0",
+      "on-track": "forecastDateISO <= targetISO",
+      "behind": "forecastDateISO > targetISO"
+    }
+  },
+  "functionSignature": {
+    "name": "calcGoalForecast",
+    "params": [
+      { "name": "goalKm", "type": "number", "desc": "цель периода, км" },
+      { "name": "actualKm", "type": "number", "desc": "уже набегано за период, км" },
+      { "name": "paceKmPerWeek", "type": "number", "desc": "текущий темп, км/нед" },
+      { "name": "todayISO", "type": "string", "desc": "сегодня, YYYY-MM-DD" },
+      { "name": "targetISO", "type": "string", "desc": "последний день периода, YYYY-MM-DD" }
+    ],
+    "returns": [
+      "status",
+      "goalKm",
+      "actualKm",
+      "remainingKm",
+      "paceKmPerWeek",
+      "requiredKmPerWeek",
+      "paceDeltaKmPerWeek",
+      "daysLeft",
+      "daysNeeded",
+      "forecastDateISO",
+      "daysEarly",
+      "daysLate"
+    ],
+    "constraints": [
+      "Не читает DOM",
+      "Не обращается к state",
+      "Не имеет побочных эффектов — проверяется вызовом из консоли"
+    ]
+  },
+  "examples": [
+    {
+      "id": 1,
+      "name": "Успеваем",
+      "input": {
+        "goalKm": 75,
+        "actualKm": 60,
+        "paceKmPerWeek": 25,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-10-31"
+      },
+      "expected": {
+        "status": "on-track",
+        "remainingKm": 15,
+        "daysLeft": 10,
+        "requiredKmPerWeek": 10.5,
+        "paceDeltaKmPerWeek": 14.5,
+        "daysNeeded": 5,
+        "forecastDateISO": "2026-10-26",
+        "daysEarly": 5,
+        "daysLate": 0
+      },
+      "uiText": "🎉 Успеваем — прогноз 26 окт, на 5 дней раньше срока"
+    },
+    {
+      "id": 2,
+      "name": "Отстаём",
+      "input": {
+        "goalKm": 75,
+        "actualKm": 42.5,
+        "paceKmPerWeek": 20,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-10-31"
+      },
+      "expected": {
+        "status": "behind",
+        "remainingKm": 32.5,
+        "daysLeft": 10,
+        "requiredKmPerWeek": 22.75,
+        "paceDeltaKmPerWeek": -2.75,
+        "daysNeeded": 12,
+        "forecastDateISO": "2026-11-02",
+        "daysEarly": 0,
+        "daysLate": 2
+      },
+      "uiText": "⚠️ Отстаём — прогноз 2 ноя, на 2 дня позже срока, дефицит темпа 2.8 км/нед"
+    },
+    {
+      "id": 3,
+      "name": "Цель уже достигнута",
+      "input": {
+        "goalKm": 75,
+        "actualKm": 78,
+        "paceKmPerWeek": 25,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-10-31"
+      },
+      "expected": {
+        "status": "achieved",
+        "remainingKm": 0,
+        "daysLeft": 10,
+        "requiredKmPerWeek": 0,
+        "paceDeltaKmPerWeek": 25,
+        "daysNeeded": 0,
+        "forecastDateISO": "2026-10-22",
+        "daysEarly": 10,
+        "daysLate": 0
+      },
+      "uiText": "🎉 Цель уже достигнута — факт 78.0 км при цели 75.0 км"
+    },
+    {
+      "id": 4,
+      "name": "Нет данных о темпе",
+      "input": {
+        "goalKm": 75,
+        "actualKm": 0,
+        "paceKmPerWeek": 0,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-10-31"
+      },
+      "expected": {
+        "status": "no-data",
+        "remainingKm": 75,
+        "daysLeft": 10,
+        "requiredKmPerWeek": 52.5,
+        "paceDeltaKmPerWeek": -52.5,
+        "daysNeeded": null,
+        "forecastDateISO": null,
+        "daysEarly": 0,
+        "daysLate": 0
+      },
+      "uiText": "⛔ Нет данных о темпе — за 28 дней нет тренировок, нужно 52.5 км/нед"
+    },
+    {
+      "id": 5,
+      "name": "Серьёзное отставание",
+      "input": {
+        "goalKm": 100,
+        "actualKm": 42.5,
+        "paceKmPerWeek": 20,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-10-31"
+      },
+      "expected": {
+        "status": "behind",
+        "remainingKm": 57.5,
+        "daysLeft": 10,
+        "requiredKmPerWeek": 40.25,
+        "paceDeltaKmPerWeek": -20.25,
+        "daysNeeded": 21,
+        "forecastDateISO": "2026-11-11",
+        "daysEarly": 0,
+        "daysLate": 11
+      },
+      "uiText": "⚠️ Отстаём — прогноз 11 ноя, на 11 дней позже срока, нужно 40.3 км/нед"
+    },
+    {
+      "id": 6,
+      "name": "Квартал — успеваем",
+      "input": {
+        "goalKm": 300,
+        "actualKm": 120,
+        "paceKmPerWeek": 25,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-12-31"
+      },
+      "expected": {
+        "status": "on-track",
+        "remainingKm": 180,
+        "daysLeft": 71,
+        "requiredKmPerWeek": 17.75,
+        "paceDeltaKmPerWeek": 7.25,
+        "daysNeeded": 51,
+        "forecastDateISO": "2026-12-11",
+        "daysEarly": 20,
+        "daysLate": 0
+      },
+      "uiText": "🎉 Успеваем — прогноз 11 дек, на 20 дней раньше срока"
+    },
+    {
+      "id": 7,
+      "name": "Год — серьёзное отставание",
+      "input": {
+        "goalKm": 1000,
+        "actualKm": 420,
+        "paceKmPerWeek": 25,
+        "todayISO": "2026-10-22",
+        "targetISO": "2026-12-31"
+      },
+      "expected": {
+        "status": "behind",
+        "remainingKm": 580,
+        "daysLeft": 71,
+        "requiredKmPerWeek": 57.18,
+        "paceDeltaKmPerWeek": -32.18,
+        "daysNeeded": 163,
+        "forecastDateISO": "2027-04-02",
+        "daysEarly": 0,
+        "daysLate": 92
+      },
+      "uiText": "⚠️ Отстаём — прогноз 2 апр 2027, на 92 дня позже срока, нужно 57.2 км/нед"
+    }
+  ],
+  "uiCopy": {
+    "cardTitle": "📅 Прогноз достижения цели",
+    "labels": {
+      "fact": "Факт",
+      "remaining": "Осталось",
+      "pace": "Темп сейчас",
+      "required": "Нужно темп",
+      "deficit": "Дефицит темпа",
+      "window": "Темп за {n} дней",
+      "forecast": "Прогноз",
+      "deadline": "Срок"
+    },
+    "status": {
+      "achieved": { "badge": "🎉 Цель уже достигнута", "cls": "badge-green" },
+      "on-track": { "badge": "🎉 Успеваем", "cls": "badge-green" },
+      "behind": { "badge": "⚠️ Отстаём", "cls": "badge-red" },
+      "no-data": { "badge": "⛔ Нет данных о темпе", "cls": "badge-yellow" }
+    },
+    "headerSuffix": {
+      "achieved": "· Прогноз: цель уже достигнута",
+      "on-track": "· Прогноз: {date}, на {n} дней раньше",
+      "behind": "· Прогноз: {date}, на {n} дней позже",
+      "no-data": "· Прогноз: нет данных о темпе"
+    }
+  },
+  "validation": {
+    "rules": [
+      "goalKm <= 0 — цель не задана, показывать «Цель не задана»",
+      "actualKm > goalKm — статус achieved",
+      "paceKmPerWeek <= 0 и remainingKm > 0 — статус no-data, forecastDateISO = null",
+      "daysLeft <= 0 — период завершён, прогноз не считается",
+      "Все даты — календарные, без UTC и без пересчёта часовых поясов",
+      "Дни округляются вверх через Math.ceil, дробные дни в UI не показываются"
+    ]
+  }
+}

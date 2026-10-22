@@ -1,0 +1,182 @@
+{
+  "task": "task-005-kpi-groups",
+  "title": "Группировка KPI-карточек по смысловым блокам",
+  "version": 1,
+  "target": {
+    "file": "running-dashboard 3.html",
+    "containerSelector": "#kpi-grid",
+    "renderFunction": "renderKPIs()",
+    "clickHandlerSelector": "#kpi-grid",
+    "storage": {
+      "bucket": "STORAGE_KEYS.settings",
+      "localStorageKey": "run_pro_settings_v2",
+      "statePath": "state.settings.kpiGroups"
+    }
+  },
+  "kpiMeta": {
+    "7d": {
+      "title": "За последние 7 дней",
+      "unit": "км",
+      "group": "volume",
+      "valueId": "kpi-km7",
+      "description": "Суммарная дистанция за 7 последних дней с планом и процентом выполнения"
+    },
+    "month": {
+      "title": "За текущий месяц",
+      "unit": "км",
+      "group": "volume",
+      "valueId": "kpi-kmm",
+      "description": "Суммарная дистанция за текущий месяц с целью и процентом выполнения"
+    },
+    "count": {
+      "title": "Число тренировок",
+      "unit": "за период",
+      "group": "volume",
+      "valueId": "kpi-cnt-period",
+      "description": "Количество тренировок за выбранный период, 7 дней и месяц"
+    },
+    "avg_km": {
+      "title": "Средняя дистанция",
+      "unit": "км",
+      "group": "pace",
+      "valueId": "kpi-avg-km",
+      "description": "Средняя дистанция одной тренировки за выбранный период"
+    },
+    "avg_pace": {
+      "title": "Средний темп",
+      "unit": "мин/км",
+      "group": "pace",
+      "valueId": "kpi-avg-pace",
+      "description": "Агрегированный темп за период и производная скорость в км/ч"
+    },
+    "w_pulse": {
+      "title": "Ср. пульс (на км)",
+      "unit": "уд/мин",
+      "group": "pulse",
+      "valueId": "kpi-wpulse",
+      "description": "Взвешенный по километражу средний пульс: ∑(ЧСС×км)/∑км"
+    },
+    "max_pulse": {
+      "title": "Средний макс. пульс",
+      "unit": "уд/мин",
+      "group": "pulse",
+      "valueId": "kpi-maxpulse",
+      "description": "Среднее максимального пульса за период и пиковое значение"
+    },
+    "longest": {
+      "title": "Самая длинная",
+      "unit": "км",
+      "group": "volume",
+      "valueId": "kpi-longest",
+      "description": "Самая длинная пробежка за период с датой и типом"
+    },
+    "streak": {
+      "title": "Серия дней подряд",
+      "unit": "дн.",
+      "group": "consistency",
+      "valueId": "kpi-streak",
+      "description": "Текущая серия тренировочных дней и максимальная серия в периоде"
+    },
+    "trend": {
+      "title": "Тренд (4 нед. к пред. 4)",
+      "unit": "%",
+      "group": "consistency",
+      "valueId": "kpi-trend",
+      "description": "Изменение объёма за 28 дней по сравнению с предыдущими 28 днями"
+    }
+  },
+  "defaultKpiGroups": [
+    {
+      "id": "volume",
+      "icon": "📦",
+      "title": "Объём",
+      "collapsed": false,
+      "hidden": false,
+      "cards": ["7d", "month", "count", "longest"]
+    },
+    {
+      "id": "pace",
+      "icon": "⚡",
+      "title": "Темп",
+      "collapsed": false,
+      "hidden": false,
+      "cards": ["avg_km", "avg_pace"]
+    },
+    {
+      "id": "pulse",
+      "icon": "❤️",
+      "title": "Пульс",
+      "collapsed": false,
+      "hidden": false,
+      "cards": ["w_pulse", "max_pulse"]
+    },
+    {
+      "id": "consistency",
+      "icon": "🔥",
+      "title": "Регулярность",
+      "collapsed": false,
+      "hidden": false,
+      "cards": ["streak", "trend"]
+    }
+  ],
+  "customizedExample": {
+    "comment": "Пример сохранённой раскладки: карточка avg_km перенесена в группу Темп, группа Пульс скрыта, trend скрыт как карточка",
+    "version": 1,
+    "groups": [
+      {
+        "id": "volume",
+        "icon": "📦",
+        "title": "Объём",
+        "collapsed": false,
+        "hidden": false,
+        "cards": ["7d", "month", "count", "longest"]
+      },
+      {
+        "id": "pace",
+        "icon": "⚡",
+        "title": "Темп",
+        "collapsed": true,
+        "hidden": false,
+        "cards": ["avg_km", "avg_pace"]
+      },
+      {
+        "id": "pulse",
+        "icon": "❤️",
+        "title": "Пульс",
+        "collapsed": false,
+        "hidden": true,
+        "cards": ["w_pulse", "max_pulse"]
+      },
+      {
+        "id": "consistency",
+        "icon": "🔥",
+        "title": "Регулярность",
+        "collapsed": false,
+        "hidden": false,
+        "cards": ["streak"]
+      }
+    ],
+    "hiddenCards": ["trend"]
+  },
+  "validation": {
+    "knownCardIds": [
+      "7d",
+      "month",
+      "count",
+      "avg_km",
+      "avg_pace",
+      "w_pulse",
+      "max_pulse",
+      "longest",
+      "streak",
+      "trend"
+    ],
+    "rules": [
+      "Неизвестные data-kpi из сохранённой раскладки игнорируются",
+      "Карточки, отсутствующие в раскладке, возвращаются в группу по умолчанию",
+      "Новые карточки, добавленные в разметку, автоматически попадают в группу по умолчанию",
+      "Повтор одной карточки в нескольких группах запрещён — остаётся первое вхождение",
+      "Пустая группа отображается как «0 метрик» и не ломает сетку"
+    ]
+  }
+}
